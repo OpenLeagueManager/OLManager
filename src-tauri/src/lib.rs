@@ -8,6 +8,7 @@ use crate::discord_rpc::DiscordRpcState;
 use olm_core::sim_live::SimLiveStoreState;
 use olm_core::db::save_manager::SaveManager;
 use olm_core::state::StateManager;
+use std::path::Path;
 use std::sync::Mutex;
 
 /// Tauri-managed wrapper around SaveManager.
@@ -37,6 +38,85 @@ fn percent_decode(input: &str) -> String {
         i += 1;
     }
     String::from_utf8_lossy(&out).into_owned()
+}
+
+fn copy_dir_recursive(source: &Path, destination: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(destination)?;
+
+    for entry in std::fs::read_dir(source)? {
+        let entry = entry?;
+        let source_path = entry.path();
+        let destination_path = destination.join(entry.file_name());
+        let file_type = entry.file_type()?;
+
+        if file_type.is_dir() {
+            copy_dir_recursive(&source_path, &destination_path)?;
+        } else if file_type.is_file() {
+            if let Some(parent) = destination_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::copy(&source_path, &destination_path)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn contains_competition_manifest(data_dir: &Path) -> bool {
+    let competitions_dir = data_dir.join("competitions");
+    let Ok(entries) = std::fs::read_dir(competitions_dir) else {
+        return false;
+    };
+
+    entries
+        .filter_map(Result::ok)
+        .any(|entry| entry.path().join("manifest.json").is_file())
+}
+
+fn seed_bundled_data_if_missing(app: &tauri::App) {
+    use tauri::Manager as TauriManager;
+
+    let Ok(app_data_dir) = app.path().app_data_dir() else {
+        log::warn!("[setup] Could not resolve app data dir; skipping bundled data seed");
+        return;
+    };
+
+    let destination = app_data_dir.join("data");
+    if contains_competition_manifest(&destination) {
+        log::info!("[setup] App data directory already contains competition data; skipping seed");
+        return;
+    }
+
+    let Ok(resource_dir) = app.path().resource_dir() else {
+        log::warn!("[setup] Could not resolve resource dir; skipping bundled data seed");
+        return;
+    };
+
+    let source = resource_dir.join("data");
+    if contains_competition_manifest(&source) {
+        match copy_dir_recursive(&source, &destination) {
+            Ok(()) => {
+                log::info!(
+                    "[setup] Seeded bundled data from {:?} into {:?}",
+                    source,
+                    destination
+                );
+                return;
+            }
+            Err(error) => {
+                log::error!(
+                    "[setup] Failed to seed bundled data from {:?} into {:?}: {}",
+                    source,
+                    destination,
+                    error
+                );
+            }
+        }
+    }
+
+    log::warn!(
+        "[setup] Bundled data directory not found in resources; league selection may be empty"
+    );
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -89,6 +169,7 @@ pub fn run() {
                 .app_data_dir()
                 .expect("Failed to get app data dir");
             std::fs::create_dir_all(&app_data_dir).expect("Failed to create app data dir");
+            seed_bundled_data_if_missing(app);
 
             let saves_dir = app_data_dir.join("saves");
             let mut save_manager =
@@ -254,5 +335,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
-

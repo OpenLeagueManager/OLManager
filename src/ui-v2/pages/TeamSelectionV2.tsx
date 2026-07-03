@@ -14,6 +14,22 @@ import { calculateLolOvr } from "@/lib/players/lolPlayerStats";
 
 type Screen = "loading" | "error" | "league" | "teams";
 
+function formatActionError(error: unknown): string {
+  if (error instanceof Error) {
+    return [error.message, error.stack].filter(Boolean).join("\n\n");
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  try {
+    return JSON.stringify(error, null, 2);
+  } catch {
+    return String(error);
+  }
+}
+
 export default function TeamSelectionV2() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -25,6 +41,7 @@ export default function TeamSelectionV2() {
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   useEffect(() => {
     loadLeagueSelectionData()
@@ -49,20 +66,26 @@ export default function TeamSelectionV2() {
   const handleLeagueSelect = (id: string) => {
     setSelectedCompetitionId(id);
     setSelectedTeamId(null);
+    setConfirmError(null);
     setScreen("teams");
   };
 
   const handleBackToLeagues = () => {
     setSelectedCompetitionId(null);
     setSelectedTeamId(null);
+    setConfirmError(null);
     setScreen("league");
   };
 
   const handleBackToMenu = () => navigate("/");
 
   const handleConfirm = async () => {
-    if (!selectedTeamId || isConfirming) return;
+    if (!selectedTeamId || isConfirming) {
+      if (!selectedTeamId) setConfirmError("Select a team before confirming.");
+      return;
+    }
     setIsConfirming(true);
+    setConfirmError(null);
     try {
       let updatedGame = await selectTeam(selectedTeamId, i18n.language);
       const myTeam = updatedGame.teams.find((t: any) => t.id === selectedTeamId);
@@ -93,6 +116,7 @@ export default function TeamSelectionV2() {
       navigate("/dashboard");
     } catch (err) {
       console.error("Failed to select team:", err);
+      setConfirmError(formatActionError(err));
     } finally {
       setIsConfirming(false);
     }
@@ -166,7 +190,22 @@ export default function TeamSelectionV2() {
       {isLeagueScreen ? (
         <LeaguePickerV2 competitions={activeCompetitions} onSelect={handleLeagueSelect} />
       ) : (
-        <TeamGridV2 teams={selectedCompetition?.teams ?? []} onSelectTeam={setSelectedTeamId} selectedTeamId={selectedTeamId} />
+        <div className="flex min-h-0 flex-1 flex-col">
+          {confirmError && (
+            <div className="mx-6 mt-4 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive md:mx-8">
+              <p className="font-heading text-sm font-bold uppercase tracking-wide">
+                {t("teamSelect.selectTeamErrorTitle", "Could not select team")}
+              </p>
+              <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md bg-background/70 p-3 font-mono text-xs leading-relaxed text-destructive">
+                {confirmError}
+              </pre>
+            </div>
+          )}
+          <TeamGridV2 teams={selectedCompetition?.teams ?? []} onSelectTeam={(id) => {
+            setSelectedTeamId(id);
+            setConfirmError(null);
+          }} selectedTeamId={selectedTeamId} />
+        </div>
       )}
     </div>
   );
