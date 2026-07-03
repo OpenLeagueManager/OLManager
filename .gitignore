@@ -69,6 +69,31 @@ pnpm-debug.log*
 Thumbs.db
 
 # =========================
+# Android signing secrets
+# These are intentionally excluded from the repo. If a keystore file is
+# already tracked, gitignore does not untrack it; it only hides untracked
+# copies from `git status`.
+# =========================
+src-tauri/gen/android/keystore.properties
+*.jks
+*.keystore
+
+# =========================
+# Android generated build outputs
+# Tauri/Gradle regenerate these during mobile builds. Do not ignore source
+# files under src-tauri/gen/android/app/src/main/java/.
+# =========================
+src-tauri/gen/android/.gradle/
+src-tauri/gen/android/**/build/
+src-tauri/gen/android/app/src/main/assets/
+src-tauri/gen/android/local.properties
+
+# =========================
+# Local code intelligence indexes
+# =========================
+.codegraph/
+
+# =========================
 # SDD artifacts (openspec)
 # =========================
 openspec/
@@ -80,4 +105,3 @@ openspec/
 # showing up as untracked clutter.
 # =========================
 public/player-photos/
-
