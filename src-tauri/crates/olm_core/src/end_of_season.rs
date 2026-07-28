@@ -3,8 +3,8 @@ use crate::domain::message::*;
 use crate::domain::player::PlayerSeasonStats;
 use crate::domain::team::{FinancialTransactionKind, TeamSeasonRecord};
 use crate::finances::{
-    push_board_financial_health_mail, push_prize_payout_mail, record_transaction, BudgetImpact,
-    FinanceTransactionInput,
+    BudgetImpact, FinanceTransactionInput, push_board_financial_health_mail,
+    push_prize_payout_mail, record_transaction,
 };
 use crate::game::Game;
 use crate::generator::definitions::CompetitionManifest;
@@ -141,11 +141,7 @@ pub fn process_end_of_split(game: &mut Game, manifest: &CompetitionManifest) {
     };
     let split_index = league.split_index;
     let season = league.season;
-    let team_ids: Vec<String> = league
-        .standings
-        .iter()
-        .map(|s| s.team_id.clone())
-        .collect();
+    let team_ids: Vec<String> = league.standings.iter().map(|s| s.team_id.clone()).collect();
     let user_team_id = game.manager.team_id.clone().unwrap_or_default();
 
     let mut new_league = generate_schedule_from_config(manifest, season, &team_ids, split_index);
@@ -185,7 +181,10 @@ pub fn process_end_of_split(game: &mut Game, manifest: &CompetitionManifest) {
 /// Records team history for completed bg leagues and generates next season via
 /// the competition manifest (looked up by competition_id).
 /// Skips bg leagues that are not complete, or have no competition_id.
-pub fn process_background_seasons(game: &mut Game, manifests: &HashMap<String, CompetitionManifest>) {
+pub fn process_background_seasons(
+    game: &mut Game,
+    manifests: &HashMap<String, CompetitionManifest>,
+) {
     // First pass: identify complete bg leagues (avoiding borrow conflicts)
     let complete_indices: Vec<usize> = (1..game.leagues.len())
         .filter(|i| is_league_complete(&game.leagues[*i]))
@@ -217,7 +216,8 @@ pub fn process_background_seasons(game: &mut Game, manifests: &HashMap<String, C
             // Record TeamSeasonRecord for each team (no prize money, no messages)
             for (idx, standing) in final_standings.iter().enumerate() {
                 if let Some(team) = game.teams.iter_mut().find(|t| t.id == standing.team_id) {
-                    let already_recorded = team.history.iter().any(|record| record.season == season);
+                    let already_recorded =
+                        team.history.iter().any(|record| record.season == season);
                     if !already_recorded {
                         team.history.push(TeamSeasonRecord {
                             season,
@@ -243,12 +243,7 @@ pub fn process_background_seasons(game: &mut Game, manifests: &HashMap<String, C
                 } else {
                     (season, next_idx)
                 };
-                let new_league = generate_schedule_from_config(
-                    manifest,
-                    ns,
-                    &team_ids,
-                    split_idx,
-                );
+                let new_league = generate_schedule_from_config(manifest, ns, &team_ids, split_idx);
                 game.leagues[i] = new_league;
             }
         }
@@ -759,6 +754,40 @@ pub struct EndOfSeasonSummary {
     pub poty_player: String,
     pub poty_rating: f64,
     pub total_teams: u32,
+}
+
+#[cfg(test)]
+mod summary_contract_tests {
+    use super::EndOfSeasonSummary;
+
+    #[test]
+    fn serializes_the_tauri_summary_contract() {
+        let value = serde_json::to_value(EndOfSeasonSummary::default()).unwrap();
+        let object = value.as_object().unwrap();
+        let mut keys: Vec<&str> = object.keys().map(String::as_str).collect();
+        keys.sort_unstable();
+
+        assert_eq!(
+            keys,
+            [
+                "champion_id",
+                "champion_name",
+                "golden_boot_goals",
+                "golden_boot_player",
+                "league_name",
+                "poty_player",
+                "poty_rating",
+                "season",
+                "total_teams",
+                "user_lost",
+                "user_maps_lost",
+                "user_maps_won",
+                "user_points",
+                "user_position",
+                "user_won",
+            ]
+        );
+    }
 }
 
 fn contract_days_remaining(

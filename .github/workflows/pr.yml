@@ -64,20 +64,17 @@ jobs:
 
       - name: Check formatting
         run: cargo fmt --check
-        continue-on-error: true
 
       - name: Check core crates
         run: cargo check -p olm_core
 
       - name: Lint Rust workspace
         run: cargo clippy --workspace --all-targets
-        continue-on-error: true
 
       - name: Test core crates
         run: cargo test -p olm_core
       - name: Check main crate (lib only, tests blocked by lol_sim_v2.rs)
         run: cargo check -p openleaguemanager --lib
-        continue-on-error: true
 
   security-audit:
     name: security-audit
@@ -137,6 +134,9 @@ jobs:
       - name: Typecheck frontend
         run: npm run build:types
 
+      - name: Build frontend
+        run: npm run build
+
   rust-full:
     name: rust-tests-and-clippy
     runs-on: ubuntu-latest
@@ -172,8 +172,6 @@ jobs:
 
       - name: Lint Rust workspace
         run: cargo clippy --workspace --all-targets
-        continue-on-error: true
  
       - name: Test core crates
         run: cargo test -p olm_core
-

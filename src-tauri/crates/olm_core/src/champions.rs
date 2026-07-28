@@ -1,15 +1,15 @@
+use crate::domain::message::{InboxMessage, MessageCategory, MessagePriority};
+use crate::domain::staff::StaffRole;
 use crate::game::Game;
 use crate::staff_effects::LolStaffEffects;
 use chrono::{Datelike, NaiveDate};
-use crate::domain::message::{InboxMessage, MessageCategory, MessagePriority};
-use crate::domain::staff::StaffRole;
 use rand::Rng;
 use rand::RngExt;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::sync::OnceLock;
 #[cfg(feature = "typescript")]
 use ts_rs::TS;
@@ -535,7 +535,10 @@ pub fn bootstrap_seed_masteries(game: &mut Game) {
     // The catalog returns (champion_id, role) pairs, one per role per champ.
     let mut by_role: HashMap<&str, Vec<&str>> = HashMap::new();
     for (champion_id, role) in catalog.iter() {
-        by_role.entry(role.as_str()).or_default().push(champion_id.as_str());
+        by_role
+            .entry(role.as_str())
+            .or_default()
+            .push(champion_id.as_str());
     }
 
     // Collect (player_id, role_str) upfront to avoid borrowing conflicts.
@@ -565,7 +568,8 @@ pub fn bootstrap_seed_masteries(game: &mut Game) {
 
         // Deterministic count: 4-6 champions per player.
         let count_seed = format!("{}_{}", player_id, "seed_count");
-        let count = 4 + (hash_text(&count_seed) as usize % 3.min(champions.len().saturating_sub(4)));
+        let count =
+            4 + (hash_text(&count_seed) as usize % 3.min(champions.len().saturating_sub(4)));
         let count = count.min(champions.len());
 
         // Sort champions deterministically using a hash seeded by player_id.
@@ -740,8 +744,7 @@ fn seed_initial_discovery(game: &mut Game) {
             .staff
             .iter()
             .filter(|staff| {
-                staff.team_id.as_deref() == Some(manager_team_id)
-                    && staff.role == StaffRole::Scout
+                staff.team_id.as_deref() == Some(manager_team_id) && staff.role == StaffRole::Scout
             })
             .collect();
 
@@ -777,10 +780,7 @@ fn seed_initial_discovery(game: &mut Game) {
     }
 
     let seed_salt = format!("initial_discovery:{}", game.champion_patch.rng_seed);
-    let mut rng = StdRng::seed_from_u64(derived_seed(
-        game.champion_patch.rng_seed,
-        &seed_salt,
-    ));
+    let mut rng = StdRng::seed_from_u64(derived_seed(game.champion_patch.rng_seed, &seed_salt));
 
     let reveal_count = base_reveals.min(all_keys.len());
     let mut indices: Vec<usize> = (0..all_keys.len()).collect();
@@ -806,7 +806,11 @@ pub fn bootstrap_champion_state(game: &mut Game) {
     let day_index = days_between(game.clock.start_date, game.clock.current_date);
     let player_ids: Vec<String> = game.players.iter().map(|p| p.id.clone()).collect();
     for player_id in &player_ids {
-        let idx = game.players.iter().position(|p| &p.id == player_id).unwrap();
+        let idx = game
+            .players
+            .iter()
+            .position(|p| &p.id == player_id)
+            .unwrap();
         let lp = {
             let player = &game.players[idx];
             (soloq_points_at(game, player, day_index) - SOLOQ_POINTS_BASELINE).max(0.0)
@@ -1330,7 +1334,7 @@ fn apply_mastery_decay(game: &mut Game) {
 }
 
 fn should_roll_patch(game: &Game, state: &ChampionPatchState) -> bool {
-    if game.clock.current_date.weekday().num_days_from_monday() != 2 {
+    if game.clock.current_date.weekday().num_days_from_monday() != 1 {
         return false;
     }
 
@@ -1584,7 +1588,8 @@ fn process_meta_discovery(game: &mut Game) {
     // Discovery runs every day, so salt with the date to vary the random reveal
     // count and the picks instead of repeating the same draw every single day.
     let discovery_salt = format!("discovery:{}", today_str(game));
-    let mut rng = StdRng::seed_from_u64(derived_seed(game.champion_patch.rng_seed, &discovery_salt));
+    let mut rng =
+        StdRng::seed_from_u64(derived_seed(game.champion_patch.rng_seed, &discovery_salt));
     reveals += rng.random_range(0..=4);
 
     let discovered_set: HashSet<String> = game
@@ -1631,7 +1636,11 @@ pub fn process_daily_champion_system(game: &mut Game) {
     let day_index = days_between(game.clock.start_date, game.clock.current_date);
     let player_ids: Vec<String> = game.players.iter().map(|p| p.id.clone()).collect();
     for player_id in &player_ids {
-        let idx = game.players.iter().position(|p| &p.id == player_id).unwrap();
+        let idx = game
+            .players
+            .iter()
+            .position(|p| &p.id == player_id)
+            .unwrap();
         let lp = {
             let player = &game.players[idx];
             (soloq_points_at(game, player, day_index) - SOLOQ_POINTS_BASELINE).max(0.0)
@@ -1664,7 +1673,12 @@ pub struct ChampionListEntry {
 /// Load the champion catalog from `assets/draft/champion-list.json`.
 /// Returns an empty vec if the file cannot be read.
 pub fn load_champion_catalog(data_base: &Path) -> Vec<crate::domain::champion::Champion> {
-    let path = data_base.parent().unwrap_or(data_base).join("assets").join("draft").join("champion-list.json");
+    let path = data_base
+        .parent()
+        .unwrap_or(data_base)
+        .join("assets")
+        .join("draft")
+        .join("champion-list.json");
     load_champion_catalog_from_path(&path)
 }
 
@@ -1709,10 +1723,11 @@ pub fn load_champion_catalog_from_path(path: &Path) -> Vec<crate::domain::champi
 mod tests {
     use super::*;
     use crate::clock::GameClock;
-    use chrono::Utc;
     use crate::domain::manager::Manager;
     use crate::domain::player::{LolRole, Player, PlayerAttributes};
+    use crate::domain::staff::{Staff, StaffAttributes, StaffRole};
     use crate::domain::team::Team;
+    use chrono::{TimeZone, Utc};
 
     fn attrs() -> PlayerAttributes {
         PlayerAttributes {
@@ -1750,13 +1765,210 @@ mod tests {
         team.active_lineup_ids = lineup.into_iter().map(str::to_string).collect();
 
         Game::new(
-            GameClock::new(Utc::now()),
+            GameClock::new(test_date(2026, 1, 6)),
             manager,
             vec![team],
             Vec::new(),
             Vec::new(),
             Vec::new(),
         )
+    }
+
+    fn test_date(year: i32, month: u32, day: u32) -> chrono::DateTime<Utc> {
+        Utc.with_ymd_and_hms(year, month, day, 12, 0, 0)
+            .single()
+            .unwrap()
+    }
+
+    fn game_with_player() -> Game {
+        let mut game = game_with_lineup(Vec::new());
+        let mut player = Player::new(
+            "player-1".to_string(),
+            "Player One".to_string(),
+            "Player One".to_string(),
+            "2000-01-01".to_string(),
+            "ES".to_string(),
+            LolRole::Mid,
+            attrs(),
+        );
+        player.team_id = Some("team-1".to_string());
+        game.players.push(player);
+        game
+    }
+
+    #[test]
+    fn patches_only_roll_on_tuesday_after_the_fortnightly_interval() {
+        let mut game = game_with_lineup(Vec::new());
+        game.clock.current_date = test_date(2026, 1, 20); // Tuesday
+        let state = ChampionPatchState {
+            last_patch_date: Some("2026-01-06".to_string()),
+            ..Default::default()
+        };
+        assert!(should_roll_patch(&game, &state));
+
+        game.clock.current_date = test_date(2026, 1, 19); // Monday
+        assert!(!should_roll_patch(&game, &state));
+
+        game.clock.current_date = test_date(2026, 1, 13); // Tuesday, one week later
+        assert!(!should_roll_patch(&game, &state));
+    }
+
+    #[test]
+    fn patch_resets_only_discovery_for_its_noted_champions() {
+        let mut game = game_with_lineup(Vec::new());
+        game.clock.current_date = test_date(2026, 1, 20);
+        game.champion_patch.rng_seed = 7;
+        game.champion_patch.current_patch = 1;
+        game.champion_patch.patch_year = 26;
+        game.champion_patch.patch_index_in_year = 1;
+        game.champion_patch.hidden_meta = champion_catalog()
+            .iter()
+            .map(|(champion_id, role)| ChampionMetaEntry {
+                champion_id: champion_id.clone(),
+                role: role.clone(),
+                tier: "C".to_string(),
+            })
+            .collect();
+        game.champion_patch.discovered_champion_ids = champion_catalog()
+            .iter()
+            .map(|(champion_id, _)| champion_id.clone())
+            .collect();
+
+        apply_patch(&mut game);
+
+        let reset: HashSet<String> = game
+            .champion_patch
+            .patch_notes
+            .iter()
+            .map(|note| normalize_key(&note.champion_id))
+            .collect();
+        let retained: HashSet<String> = game
+            .champion_patch
+            .discovered_champion_ids
+            .iter()
+            .map(|champion| normalize_key(champion))
+            .collect();
+        assert!(!reset.is_empty());
+        assert!(reset.is_disjoint(&retained));
+    }
+
+    #[test]
+    fn discovery_adds_unique_champions_and_never_exceeds_available_candidates() {
+        let mut game = game_with_lineup(Vec::new());
+        let mut scout = Staff::new(
+            "scout-1".to_string(),
+            "Scout".to_string(),
+            "One".to_string(),
+            "1990-01-01".to_string(),
+            StaffRole::Scout,
+            StaffAttributes {
+                judging_ability: 100,
+                judging_potential: 100,
+                ..Default::default()
+            },
+        );
+        scout.team_id = Some("team-1".to_string());
+        game.staff.push(scout);
+        game.champion_patch.rng_seed = 99;
+        game.champion_patch.hidden_meta = vec![
+            ChampionMetaEntry {
+                champion_id: "Ahri".to_string(),
+                role: "Mid".to_string(),
+                tier: "S".to_string(),
+            },
+            ChampionMetaEntry {
+                champion_id: "Jinx".to_string(),
+                role: "ADC".to_string(),
+                tier: "A".to_string(),
+            },
+            ChampionMetaEntry {
+                champion_id: "Garen".to_string(),
+                role: "Top".to_string(),
+                tier: "B".to_string(),
+            },
+        ];
+        game.champion_patch.discovered_champion_ids = vec!["Ahri".to_string()];
+
+        process_meta_discovery(&mut game);
+
+        let discovered: HashSet<String> = game
+            .champion_patch
+            .discovered_champion_ids
+            .iter()
+            .map(|champion| normalize_key(champion))
+            .collect();
+        assert_eq!(
+            discovered.len(),
+            game.champion_patch.discovered_champion_ids.len()
+        );
+        assert_eq!(discovered.len(), 3);
+    }
+
+    #[test]
+    fn mastery_stays_within_bounds_and_decays_at_inactivity_thresholds() {
+        let mut game = game_with_player();
+        game.clock.current_date = test_date(2026, 3, 1);
+        upsert_mastery(&mut game, "player-1", "Ahri", 255);
+        game.champion_masteries[0].last_active_on = "2026-01-04".to_string();
+        assert_eq!(
+            mastery_for_player_champion(&game, "player-1", "Ahri"),
+            MASTERY_CAP
+        );
+
+        game.champion_masteries.push(ChampionMasteryEntry {
+            player_id: "player-1".to_string(),
+            champion_id: "Jinx".to_string(),
+            mastery: MIN_MASTERY,
+            last_active_on: "2026-01-04".to_string(),
+        });
+        apply_mastery_decay(&mut game);
+
+        assert_eq!(
+            mastery_for_player_champion(&game, "player-1", "Ahri"),
+            MASTERY_CAP - 1
+        );
+        assert_eq!(
+            mastery_for_player_champion(&game, "player-1", "Jinx"),
+            MIN_MASTERY
+        );
+    }
+
+    #[test]
+    fn training_targets_compact_priorities_and_remove_normalized_duplicates() {
+        let mut game = game_with_player();
+        set_player_training_target(&mut game, "player-1", 1, Some("Ahri".to_string())).unwrap();
+        set_player_training_target(&mut game, "player-1", 2, Some("AHRI".to_string())).unwrap();
+        set_player_training_target(&mut game, "player-1", 2, Some("Jinx".to_string())).unwrap();
+
+        let targets = &game.players[0].champion_training_targets;
+        assert_eq!(
+            targets,
+            &vec!["AHRI".to_string(), "Jinx".to_string(), String::new()]
+        );
+        assert!(
+            set_player_training_target(&mut game, "player-1", 3, Some("Orianna".to_string()))
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn soloq_status_is_deterministic_bounded_and_uses_its_tier_multiplier() {
+        let mut game = game_with_player();
+        game.clock.current_date = test_date(2026, 3, 7);
+        let player = &game.players[0];
+
+        let first = soloq_status_for_player(&game, player);
+        let second = soloq_status_for_player(&game, player);
+        assert_eq!(first.lp, second.lp);
+        assert_eq!(first.delta, second.delta);
+        assert!(first.lp <= (SOLOQ_POINTS_MAX - SOLOQ_POINTS_BASELINE) as u32);
+        assert_eq!(
+            first.multiplier,
+            soloq_multiplier_for_tier(soloq_tier_from_lp(f64::from(first.lp)))
+        );
+        assert_eq!(soloq_tier_from_lp(799.0), SoloQTier::Master);
+        assert_eq!(soloq_tier_from_lp(800.0), SoloQTier::Grandmaster);
+        assert_eq!(soloq_tier_from_lp(1300.0), SoloQTier::Challenger);
     }
 
     #[test]
@@ -1803,4 +2015,3 @@ mod tests {
         );
     }
 }
-

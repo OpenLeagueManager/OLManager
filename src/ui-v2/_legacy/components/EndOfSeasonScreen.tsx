@@ -15,16 +15,21 @@ interface EndOfSeasonSummary {
   user_position: number;
   user_points: number;
   user_won: number;
-  user_drawn: number;
   user_lost: number;
-  user_goals_for: number;
-  user_goals_against: number;
+  user_maps_won: number;
+  user_maps_lost: number;
   golden_boot_player: string;
   golden_boot_goals: number;
   poty_player: string;
   poty_rating: number;
   total_teams: number;
 }
+
+type AdvanceToNextSeasonResult = {
+  action?: "fired";
+  game: GameStateData;
+  summary: EndOfSeasonSummary;
+};
 
 interface EndOfSeasonScreenProps {
   gameState: GameStateData;
@@ -80,7 +85,7 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
     if (loading) return;
     setLoading(true);
     try {
-      const result = await invoke<{ action?: string; game: GameStateData; summary: EndOfSeasonSummary }>("advance_to_next_season");
+      const result = await invoke<AdvanceToNextSeasonResult>("advance_to_next_season");
       if (result.action === "fired") {
         onGameUpdate(result.game);
         setShowFiredModal(true);

@@ -6,8 +6,8 @@ The Meta tab manages two connected systems:
 
 1. **Champion Patch Meta** — which champions are strong (S/A/B/C/D tiers) per
    role, discovered gradually by scouts. Updates every 14+ days on Tuesdays.
-2. **Mastery Training** — per-player champion mastery improvement via 3 training
-   targets, influenced by SoloQ rank and training focus.
+2. **Mastery Training** — per-player champion mastery improvement via three
+   ordered training targets, influenced by the engine-computed SoloQ tier.
 
 ---
 
@@ -24,17 +24,17 @@ GAME START → bootstrap_champion_state()
 EVERY TURN → process_daily_champion_system()
   ├─ bootstrap if missing
   ├─ apply_mastery_decay() — -1 every 28d after 56d inactive
-  ├─ should_roll_patch()? (Tuesday + >=14d since last patch)
+  ├─ should_roll_patch()? (Tuesday + >=14 days since last patch)
   │   └─ apply_patch():
   │       ├─ drift scores: score += random(-5..+5) + mean_reversion
   │       ├─ buff 4 bottom ~33% (+9), nerf 4 top ~25% (-9)
   │       ├─ re-rank → new tiers
-  │       ├─ reset discovery for changed champions
+  │       ├─ reset discovery for champions named in buff/nerf notes
   │       └─ generate patch notes inbox message
-  └─ process_meta_discovery()
+  └─ process_meta_discovery() (only when the manager has scouts)
       ├─ reveals = 6 + scout_count*2 + ability/25 + potential/50
       ├─ × meta_discovery staff effect (0.90–1.20)
-      └─ pick random undiscovered champions → add to discovered_champion_ids[]
+      └─ pick unique undiscovered champions → add to discovered_champion_ids[]
 ```
 
 ### Mastery training
@@ -43,7 +43,8 @@ EVERY TURN → process_daily_champion_system()
 TRAINING DAY → process_training() (if not recovery focus)
   → For each of 3 champion_training_targets:
     → gain_mult × slot_priority (P1=1.0, P2=0.65, P3=0.4)
-    → × focus_mult (ChampionPool=1.4, Individual=1.15, Scrims=1.0, ...)
+     → × focus_mult (ChampionPool=1.4, Individual=1.15, Scrims=1.0,
+       Macro=0.9, VOD=0.85)
     → × soloQ_mult (Challenger=1.2, Grandmaster=1.0, Master=0.8)
     → apply_training_mastery_progress() → probabilistic gain
 ```
@@ -93,27 +94,34 @@ final = (base × meta_discovery).round() + random(0..4)
 Where `meta_discovery` = staff effect composited from scout
 `judging_ability` (75%) and `judging_potential` (25%), range 0.90–1.20.
 
-**On patch day**, discovery is reset for champions that changed tier or were
-buffed/nerfed.
+**On patch day**, discovery is reset only for champions named in the buff or
+nerf notes. Tier re-ranking alone does not reset discovery. Daily selection is
+deduplicated and capped by the remaining undiscovered champions (at most 20).
 
 ---
 
 ## SoloQ computation
 
-Computed in the frontend (mirrored between `TrainingTabV2` and `MetaTabV2`):
+Computed in `olm_core` and cached on each player for the frontend. The Meta and
+Training tabs consume this result rather than reimplementing the formula.
 
 ```
-baseline = 3520 + (OVR - 76) × 52 + hash(player.id) % 121 - 60
+skill_base = 3520 + (OVR - 76) × 52 + masterySignal × 4 + idJitter
+skill_floor = skill_base - 350
 
-Per training day:
-  gain = 10 + (OVR - 75) × 0.8 + masterySignal × 0.08
-  gain × intensity_mult × focus_mult
+training_mod = (grindQuality - 1.0) × 600 × min(daysElapsed / 60, 1)
+points = clamp(skill_base + training_mod + dailyDrift, skill_floor, 7000)
 
 masterySignal = avg(top3 masteries) - 60 (min 0)
 
 LP = points - 3000 baseline
 Tier: Master ≥0 LP | Grandmaster ≥800 | Challenger ≥1300
 ```
+
+`grindQuality` combines player-or-team focus, team intensity, and team
+schedule. The daily drift is deterministic for the player and game day. The
+training modifier is bounded, so grinding cannot grow without limit and neglect
+cannot drop a player more than 350 points below the skill baseline.
 
 ---
 
@@ -124,7 +132,7 @@ Tier: Master ≥0 LP | Grandmaster ≥800 | Challenger ≥1300
 | **What grows** | Player attributes | Champion mastery (25–100) |
 | **Per-champion** | No | Yes — each target independently |
 | **SoloQ influence** | No | Yes — 0.8–1.2× multiplier |
-| **Decay** | None | -1 every 28d after 56d inactive |
+| **Decay** | None | -1 on days 56, 84, 112, ... inactive; never below 25 |
 | **Focus synergy** | Focus determines attribute | Focus determines gain rate |
 | **Staff influence** | Coaching, facilities | Development, SoloQ tier |
 

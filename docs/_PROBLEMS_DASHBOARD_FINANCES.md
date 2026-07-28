@@ -50,14 +50,11 @@ sponsors in one place. The Finances tab only shows the active sponsor.
 
 ---
 
-## P5 — Financial ledger is append-only with no UI
+## Resolved — Financial ledger visibility and coverage
 
-`team.financial_ledger: Vec<FinancialTransaction>` stores every transaction
-but only uses `FinancialTransactionKind::PrizeMoney`. There's no UI to browse
-the ledger.
-
-**Fix:** Add a transaction log view in the Finances tab, and expand
-transaction kinds for wages, transfers, upkeep, etc.
+The Finances tab now renders a filterable transaction ledger. The engine records
+salary, staff wage, facility, transfer, sponsorship, matchday revenue, prize,
+budget refresh, and academy transaction kinds. This is no longer an open issue.
 
 ---
 
@@ -78,5 +75,4 @@ or forced cost-cutting measures.
 | P2 | No multi-year history | Medium |
 | P3 | Matchday revenue random | Medium |
 | P4 | Sponsor offers inbox-only | Small |
-| P5 | Ledger has no UI | Medium |
 | P6 | No debt consequences | Large |
