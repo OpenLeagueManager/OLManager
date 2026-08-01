@@ -340,6 +340,24 @@ fn relationship_contribution(
     }
 }
 
+/// Evaluates canonical relationships for both fully resolved sides. This stays
+/// crate-private because auto-simulation may use complete hidden information.
+pub(crate) fn evaluate_internal_draft_relationships(
+    blue_picks: &[DraftPickInput],
+    red_picks: &[DraftPickInput],
+) -> (DraftRelationshipContribution, DraftRelationshipContribution) {
+    let all_enemy_ids = |picks: &[DraftPickInput]| {
+        picks
+            .iter()
+            .map(|pick| canonical_champion_id(&pick.champion_id))
+            .collect::<HashSet<_>>()
+    };
+    (
+        relationship_contribution(blue_picks, red_picks, &all_enemy_ids(red_picks)),
+        relationship_contribution(red_picks, blue_picks, &all_enemy_ids(blue_picks)),
+    )
+}
+
 /// Evaluates a completed draft through one privacy-preserving seam. Hidden meta and
 /// unapproved opponent relationships never cross this API.
 pub fn evaluate_draft_state(
@@ -854,6 +872,61 @@ mod tests {
         .unwrap();
         assert_eq!(authorized.blue_relationship.counter, 1);
         assert!(authorized.blue_relationship.total.abs() <= MAX_RELATIONSHIP_CONTRIBUTION);
+    }
+
+    #[test]
+    fn internal_relationship_evaluation_uses_complete_opponent_drafts() {
+        let blue = vec![
+            DraftPickInput {
+                player_id: "blue-top".into(),
+                champion_id: "Aatrox".into(),
+                effective_role: LolRole::Top,
+            },
+            DraftPickInput {
+                player_id: "blue-jungle".into(),
+                champion_id: "Kindred".into(),
+                effective_role: LolRole::Jungle,
+            },
+        ];
+        let red = vec![DraftPickInput {
+            player_id: "red-top".into(),
+            champion_id: "Cho'Gath".into(),
+            effective_role: LolRole::Top,
+        }];
+
+        let (blue_relationship, red_relationship) =
+            evaluate_internal_draft_relationships(&blue, &red);
+
+        assert_eq!(blue_relationship.synergy, 2);
+        assert_eq!(blue_relationship.counter, 1);
+        assert_eq!(blue_relationship.total, 3);
+        assert_eq!(red_relationship.counter, -1);
+        assert_eq!(red_relationship.total, -1);
+
+        let repeated_blue = (0..7)
+            .flat_map(|index| {
+                [
+                    DraftPickInput {
+                        player_id: format!("blue-aatrox-{index}"),
+                        champion_id: "Aatrox".into(),
+                        effective_role: LolRole::Top,
+                    },
+                    DraftPickInput {
+                        player_id: format!("blue-kindred-{index}"),
+                        champion_id: "Kindred".into(),
+                        effective_role: LolRole::Jungle,
+                    },
+                ]
+            })
+            .collect::<Vec<_>>();
+        let repeated_red = vec![red[0].clone(); 7];
+        let (clamped_blue, clamped_red) =
+            evaluate_internal_draft_relationships(&repeated_blue, &repeated_red);
+        assert_eq!(clamped_blue.synergy, MAX_RELATIONSHIP_CONTRIBUTION);
+        assert_eq!(clamped_blue.counter, MAX_RELATIONSHIP_CONTRIBUTION);
+        assert_eq!(clamped_blue.total, MAX_RELATIONSHIP_CONTRIBUTION);
+        assert_eq!(clamped_red.counter, -MAX_RELATIONSHIP_CONTRIBUTION);
+        assert_eq!(clamped_red.total, -MAX_RELATIONSHIP_CONTRIBUTION);
     }
 
     #[test]

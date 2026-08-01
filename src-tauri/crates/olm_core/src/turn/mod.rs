@@ -1422,7 +1422,10 @@ struct AutoDraft {
 }
 
 fn resolve_auto_draft(game: &Game, home_team_id: &str, away_team_id: &str) -> AutoDraft {
-    use crate::draft::{ChampionProfile, SkillDemandProfile, select_pick};
+    use crate::draft::{
+        ChampionProfile, DraftPickInput, SkillDemandProfile, evaluate_internal_draft_relationships,
+        select_pick,
+    };
     use std::collections::HashSet;
     let profiles: Vec<ChampionProfile> = game
         .champion_patch
@@ -1487,6 +1490,7 @@ fn resolve_auto_draft(game: &Game, home_team_id: &str, away_team_id: &str) -> Au
     }
     let mut unavailable: HashSet<String> = bans.iter().cloned().collect();
     let mut picks = Vec::new();
+    let mut side_picks = [Vec::new(), Vec::new()];
     let mut modifiers = [0.0; 2];
     for (team_index, team_id) in [home_team_id, away_team_id].iter().enumerate() {
         let team = game.teams.iter().find(|team| team.id == **team_id);
@@ -1568,15 +1572,25 @@ fn resolve_auto_draft(game: &Game, home_team_id: &str, away_team_id: &str) -> Au
             {
                 unavailable.insert(evaluation.champion_id.clone());
                 modifiers[team_index] += evaluation.engine_modifier;
+                side_picks[team_index].push(DraftPickInput {
+                    player_id: player.id.clone(),
+                    champion_id: evaluation.champion_id.clone(),
+                    effective_role: player.natural_position,
+                });
                 picks.push((player.id.clone(), evaluation.champion_id));
             }
         }
     }
+    let (home_relationship, away_relationship) =
+        evaluate_internal_draft_relationships(&side_picks[0], &side_picks[1]);
+    let relationship_modifier = |total: i8| f64::from(total) / 12.0 * 0.035;
     AutoDraft {
         picks,
         bans,
-        home_modifier: (modifiers[0] / 5.0).clamp(-0.035, 0.035),
-        away_modifier: (modifiers[1] / 5.0).clamp(-0.035, 0.035),
+        home_modifier: (modifiers[0] / 5.0 + relationship_modifier(home_relationship.total))
+            .clamp(-0.035, 0.035),
+        away_modifier: (modifiers[1] / 5.0 + relationship_modifier(away_relationship.total))
+            .clamp(-0.035, 0.035),
     }
 }
 
@@ -1860,6 +1874,107 @@ mod tests {
                 .iter()
                 .all(|record| record.bans_json.contains("top-"))
         );
+        let captured_stats = serde_json::to_string(&capture).unwrap();
+        assert!(!captured_stats.contains("relationship"));
+        assert!(!captured_stats.contains("modifier"));
+    }
+
+    #[test]
+    fn auto_draft_relationships_change_modifiers_without_persisting_them() {
+        fn game_with_auto_draft_profiles(profiles: &[(&str, &str)]) -> Game {
+            let (mut game, _) = bg_test_game("2025-06-15");
+            let roles = [
+                LolRole::Top,
+                LolRole::Jungle,
+                LolRole::Mid,
+                LolRole::Adc,
+                LolRole::Support,
+            ];
+            for (index, player) in game.players.iter_mut().enumerate() {
+                player.natural_position = roles[index % roles.len()];
+                player.position = player.natural_position;
+            }
+            game.champion_patch.hidden_meta = profiles
+                .iter()
+                .map(|(champion_id, role)| crate::champions::ChampionMetaEntry {
+                    champion_id: (*champion_id).to_string(),
+                    role: (*role).to_string(),
+                    tier: "B".to_string(),
+                })
+                .collect();
+            for team in &mut game.teams {
+                team.active_lineup_ids = game
+                    .players
+                    .iter()
+                    .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
+                    .take(5)
+                    .map(|player| player.id.clone())
+                    .collect();
+            }
+            game
+        }
+
+        let known_profiles = [
+            ("Aatrox", "top"),
+            ("ChoGath", "top"),
+            ("Kindred", "jungle"),
+            ("test-jungle-b", "jungle"),
+            ("test-mid-a", "mid"),
+            ("test-mid-b", "mid"),
+            ("test-adc-a", "adc"),
+            ("test-adc-b", "adc"),
+            ("test-support-a", "support"),
+            ("test-support-b", "support"),
+        ];
+        let neutral_profiles = [
+            ("test-top-a", "top"),
+            ("test-top-b", "top"),
+            ("test-jungle-a", "jungle"),
+            ("test-jungle-b", "jungle"),
+            ("test-mid-a", "mid"),
+            ("test-mid-b", "mid"),
+            ("test-adc-a", "adc"),
+            ("test-adc-b", "adc"),
+            ("test-support-a", "support"),
+            ("test-support-b", "support"),
+        ];
+        let mut known_game = game_with_auto_draft_profiles(&known_profiles);
+        let neutral_game = game_with_auto_draft_profiles(&neutral_profiles);
+
+        let known_draft = resolve_auto_draft(&known_game, "team1", "team2");
+        let neutral_draft = resolve_auto_draft(&neutral_game, "team1", "team2");
+
+        assert!(
+            known_draft
+                .picks
+                .iter()
+                .any(|(_, champion_id)| champion_id == "Aatrox")
+        );
+        assert!(
+            known_draft
+                .picks
+                .iter()
+                .any(|(_, champion_id)| champion_id == "Kindred")
+        );
+        assert!((known_draft.home_modifier - neutral_draft.home_modifier - 0.00875).abs() < 1e-9);
+        assert!(
+            (known_draft.away_modifier - neutral_draft.away_modifier + 0.002_916_666_666_666_667)
+                .abs()
+                < 1e-9
+        );
+
+        let mut capture = StatsState::default();
+        simulate_single_match_with_capture(&mut known_game, 0, &mut |stats| capture = stats);
+        assert_eq!(capture.player_matches.len(), 10);
+        assert!(
+            capture
+                .player_matches
+                .iter()
+                .all(|record| record.champion.is_some() && record.bans_json == "[]")
+        );
+        let captured_stats = serde_json::to_string(&capture).unwrap();
+        assert!(!captured_stats.contains("relationship"));
+        assert!(!captured_stats.contains("modifier"));
     }
 
     // -----------------------------------------------------------------------
