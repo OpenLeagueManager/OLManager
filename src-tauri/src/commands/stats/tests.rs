@@ -1,4 +1,5 @@
 use chrono::{TimeZone, Utc};
+use olm_core::clock::GameClock;
 use olm_core::domain::league::MatchType;
 use olm_core::domain::manager::Manager;
 use olm_core::domain::player::{LolRole, Player, PlayerAttributes};
@@ -6,7 +7,6 @@ use olm_core::domain::stats::{
     MatchOutcome, PlayerMatchStatsRecord, StatsState, TeamMatchStatsRecord, TeamSide,
 };
 use olm_core::domain::team::Team;
-use olm_core::clock::GameClock;
 use olm_core::game::Game;
 use olm_core::state::StateManager;
 
@@ -360,4 +360,3 @@ fn get_team_match_history_returns_lol_first_fields() {
     assert_eq!(history[0].kills, 11);
     assert_eq!(history[0].objectives, 7);
 }
-

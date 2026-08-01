@@ -36,5 +36,3 @@ pub fn build_round_summary_dto(
 ) -> Option<RoundSummaryDto> {
     olm_core::turn::build_round_summary(game, matchday, previous_standings).map(Into::into)
 }
-
-

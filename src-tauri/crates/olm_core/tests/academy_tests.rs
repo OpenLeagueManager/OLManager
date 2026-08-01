@@ -1,8 +1,8 @@
 use chrono::{TimeZone, Utc};
 use olm_core::academy::{
-    acquire_academy, eligible_academy_acquisition_options, get_acquisition_options,
-    validate_academy_acquisition, validate_parent_academy_link, AcademyAcquisitionOption,
-    AcademyError, ErlAcademyCandidate, ErlAssignmentRule, ErlLeagueDefinition,
+    AcademyAcquisitionOption, AcademyError, ErlAcademyCandidate, ErlAssignmentRule,
+    ErlLeagueDefinition, acquire_academy, eligible_academy_acquisition_options,
+    get_acquisition_options, validate_academy_acquisition, validate_parent_academy_link,
 };
 use olm_core::clock::GameClock;
 use olm_core::domain::manager::Manager;
@@ -75,9 +75,11 @@ fn acquisition_options_include_candidates_from_all_configured_erl_leagues() {
 
     assert_eq!(options.len(), 2);
     assert!(options.iter().any(|option| option.source_team_id == "kcb"));
-    assert!(options
-        .iter()
-        .any(|option| option.source_team_id == "heretics"));
+    assert!(
+        options
+            .iter()
+            .any(|option| option.source_team_id == "heretics")
+    );
 }
 
 #[test]

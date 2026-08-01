@@ -306,7 +306,11 @@ mod tests {
         ];
         for (key, expected) in &cases {
             let payload = state_key_to_payload(key);
-            assert_eq!(&payload.state, expected, "key '{}' should map to '{}'", key, expected);
+            assert_eq!(
+                &payload.state, expected,
+                "key '{}' should map to '{}'",
+                key, expected
+            );
         }
     }
 
@@ -334,11 +338,20 @@ mod tests {
     fn test_build_activity_json_includes_correct_fields() {
         let payload = state_key_to_payload("squad");
         let json = build_activity_json(&payload);
-        assert_eq!(json.get("state").and_then(|v| v.as_str()), Some("Managing Squad"));
-        assert_eq!(json.get("details").and_then(|v| v.as_str()), Some("OLManager"));
+        assert_eq!(
+            json.get("state").and_then(|v| v.as_str()),
+            Some("Managing Squad")
+        );
+        assert_eq!(
+            json.get("details").and_then(|v| v.as_str()),
+            Some("OLManager")
+        );
         assert!(json.get("timestamps").is_some());
         assert!(json.get("assets").is_some());
         // Buttons are not supported via local RPC protocol
-        assert!(json.get("buttons").is_none(), "buttons are not supported via RPC");
+        assert!(
+            json.get("buttons").is_none(),
+            "buttons are not supported via RPC"
+        );
     }
 }

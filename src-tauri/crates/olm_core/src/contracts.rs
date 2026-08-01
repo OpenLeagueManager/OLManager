@@ -554,7 +554,9 @@ pub(crate) fn expected_wage(player: &Player, team: &Team, current_date: NaiveDat
 }
 
 fn should_apply_minimum_expected_wage_floor(player: &Player, current_date: NaiveDate) -> bool {
-    player.wage == 0 || player.team_id.is_none() || remaining_contract_days(player, current_date) == 0
+    player.wage == 0
+        || player.team_id.is_none()
+        || remaining_contract_days(player, current_date) == 0
 }
 
 fn minimum_expected_wage_floor(player: &Player) -> u32 {

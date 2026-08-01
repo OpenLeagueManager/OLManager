@@ -35,4 +35,3 @@ pub fn apply_for_job(
         "game": game,
     }))
 }
-

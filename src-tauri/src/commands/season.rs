@@ -15,12 +15,13 @@ pub fn check_season_complete(state: State<'_, StateManager>) -> Result<bool, Str
 }
 
 /// Try to load the competition manifest from the globally-resolved resource dir.
-fn resolve_competition_manifest(
-    game: &olm_core::game::Game,
-) -> Option<CompetitionManifest> {
+fn resolve_competition_manifest(game: &olm_core::game::Game) -> Option<CompetitionManifest> {
     let competition_id = game.user_competition_id.as_deref()?;
     let data_dir = olm_core::state::RESOURCE_DATA_DIR.get()?;
-    let path = data_dir.join("competitions").join(competition_id).join("manifest.json");
+    let path = data_dir
+        .join("competitions")
+        .join(competition_id)
+        .join("manifest.json");
     let json = std::fs::read_to_string(path).ok()?;
     serde_json::from_str::<CompetitionManifest>(&json).ok()
 }
@@ -48,20 +49,17 @@ pub fn advance_to_next_season(state: State<'_, StateManager>) -> Result<serde_js
         was_season_end = is_wrapping;
 
         if is_wrapping {
-            info!(
-                "[cmd] advance_to_next_season: season complete, running full end-of-season"
-            );
+            info!("[cmd] advance_to_next_season: season complete, running full end-of-season");
             let summary = olm_core::end_of_season::process_end_of_season_with_config(
-                &mut game, Some(manifest),
+                &mut game,
+                Some(manifest),
             );
             // After season-end processing, generate split 0 of the new season
             olm_core::end_of_season::process_end_of_split(&mut game, manifest);
             summary
         } else {
             was_season_end = false;
-            info!(
-                "[cmd] advance_to_next_season: split complete, advancing to next split"
-            );
+            info!("[cmd] advance_to_next_season: split complete, advancing to next split");
             // Build a meaningful summary from current standings before advancing
             let pre_advance_league = game.active_league().cloned();
             let pre_advance_standings = pre_advance_league
@@ -90,8 +88,13 @@ pub fn advance_to_next_season(state: State<'_, StateManager>) -> Result<serde_js
             olm_core::end_of_season::process_end_of_split(&mut game, manifest);
             EndOfSeasonSummary {
                 season: pre_advance_league.as_ref().map(|l| l.season).unwrap_or(0),
-                league_name: pre_advance_league.as_ref().map(|l| l.name.clone()).unwrap_or_default(),
-                champion_id: pre_advance_champion.map(|c| c.team_id.clone()).unwrap_or_default(),
+                league_name: pre_advance_league
+                    .as_ref()
+                    .map(|l| l.name.clone())
+                    .unwrap_or_default(),
+                champion_id: pre_advance_champion
+                    .map(|c| c.team_id.clone())
+                    .unwrap_or_default(),
                 champion_name: pre_advance_champion_name,
                 user_position: pre_advance_user_pos as u32,
                 user_points: pre_advance_user_st.map(|s| s.points).unwrap_or(0),
@@ -146,4 +149,3 @@ pub fn get_season_awards(
         .ok_or("No active game session".to_string())?;
     Ok(olm_core::season_awards::compute_season_awards(&game))
 }
-

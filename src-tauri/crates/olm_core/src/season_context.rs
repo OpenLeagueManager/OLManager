@@ -1,8 +1,10 @@
+use crate::domain::league::League;
+use crate::domain::season::{
+    SeasonContext, SeasonPhase, TransferWindowContext, TransferWindowStatus,
+};
 use crate::end_of_season::is_league_complete;
 use crate::game::Game;
 use chrono::{Duration, NaiveDate};
-use crate::domain::league::League;
-use crate::domain::season::{SeasonContext, SeasonPhase, TransferWindowContext, TransferWindowStatus};
 
 pub fn refresh_game_context(game: &mut Game) {
     game.season_context = derive_season_context(game);
@@ -105,14 +107,14 @@ fn format_date(date: NaiveDate) -> String {
 mod tests {
     use super::derive_season_context;
     use crate::clock::GameClock;
-    use crate::game::Game;
-    use chrono::{TimeZone, Utc};
     use crate::domain::league::{
-        Fixture, LeagueKind, MatchType, FixtureStatus, League, MatchResult, StandingEntry,
+        Fixture, FixtureStatus, League, LeagueKind, MatchResult, MatchType, StandingEntry,
     };
     use crate::domain::manager::Manager;
     use crate::domain::season::{SeasonPhase, TransferWindowStatus};
     use crate::domain::team::Team;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
 
     fn make_result(home_wins: u8, away_wins: u8) -> MatchResult {
         MatchResult {
@@ -306,4 +308,3 @@ mod tests {
         assert_eq!(context.season_end.as_deref(), Some("2026-08-08"));
     }
 }
-

@@ -1,7 +1,7 @@
 use crate::domain::team::{
     Facilities, FacilityType, FinancialTransactionKind, MainFacilityModuleKind, Team,
 };
-use crate::finances::{record_transaction, BudgetImpact, FinanceTransactionInput};
+use crate::finances::{BudgetImpact, FinanceTransactionInput, record_transaction};
 
 pub const BASE_FACILITY_UPGRADE_COST: i64 = 250_000;
 pub const BASE_MAIN_HUB_EXPANSION_COST: i64 = 500_000;
@@ -15,7 +15,8 @@ fn facility_level(facilities: &Facilities, facility_type: &FacilityType) -> u8 {
 }
 
 pub fn next_upgrade_cost(team: &Team, facility_type: &FacilityType) -> i64 {
-    i64::from(facility_level(&team.facilities, facility_type).saturating_add(1)) * BASE_FACILITY_UPGRADE_COST
+    i64::from(facility_level(&team.facilities, facility_type).saturating_add(1))
+        * BASE_FACILITY_UPGRADE_COST
 }
 
 fn module_from_facility_type(facility_type: &FacilityType) -> MainFacilityModuleKind {
@@ -52,7 +53,12 @@ fn set_module_level(facilities: &mut Facilities, module: MainFacilityModuleKind,
 }
 
 pub fn next_main_hub_expansion_cost(team: &Team) -> i64 {
-    i64::from(team.facilities.as_main_facility_hub().level.saturating_add(1)) * BASE_MAIN_HUB_EXPANSION_COST
+    i64::from(
+        team.facilities
+            .as_main_facility_hub()
+            .level
+            .saturating_add(1),
+    ) * BASE_MAIN_HUB_EXPANSION_COST
 }
 
 pub fn expand_main_facility_hub(team: &mut Team, date: &str) -> Result<i64, String> {
@@ -77,7 +83,8 @@ pub fn expand_main_facility_hub(team: &mut Team, date: &str) -> Result<i64, Stri
             source_id: Some("main-hub".to_string()),
             correlation_id: Some(format!("facility:{}:{date}:main-hub", team.id)),
         },
-    ).map_err(|err| format!("Failed to record facility expansion: {err:?}"))?;
+    )
+    .map_err(|err| format!("Failed to record facility expansion: {err:?}"))?;
     team.facilities.main_hub_level = team
         .facilities
         .as_main_facility_hub()
@@ -118,7 +125,8 @@ pub fn upgrade_main_facility_module(
             source_id: Some(format!("{module:?}")),
             correlation_id: Some(format!("facility:{}:{date}:{module:?}", team.id)),
         },
-    ).map_err(|err| format!("Failed to record facility module upgrade: {err:?}"))?;
+    )
+    .map_err(|err| format!("Failed to record facility module upgrade: {err:?}"))?;
     set_module_level(
         &mut team.facilities,
         module,
@@ -128,7 +136,11 @@ pub fn upgrade_main_facility_module(
     Ok(cost)
 }
 
-pub fn upgrade_facility(team: &mut Team, facility_type: FacilityType, date: &str) -> Result<i64, String> {
+pub fn upgrade_facility(
+    team: &mut Team,
+    facility_type: FacilityType,
+    date: &str,
+) -> Result<i64, String> {
     let cost = next_upgrade_cost(team, &facility_type);
     if team.finance < cost {
         return Err(format!(
@@ -156,7 +168,8 @@ pub fn upgrade_facility(team: &mut Team, facility_type: FacilityType, date: &str
             source_id: Some(format!("{facility_type:?}")),
             correlation_id: Some(format!("facility:{}:{date}:{facility_type:?}", team.id)),
         },
-    ).map_err(|err| format!("Failed to record facility upgrade: {err:?}"))?;
+    )
+    .map_err(|err| format!("Failed to record facility upgrade: {err:?}"))?;
 
     match facility_type {
         FacilityType::Training => {

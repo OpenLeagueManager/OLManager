@@ -411,4 +411,3 @@ mod tests {
         assert!(article.player_ids.is_empty());
     }
 }
-

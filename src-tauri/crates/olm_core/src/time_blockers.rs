@@ -5,7 +5,10 @@ use crate::player_rating::{effective_rating_for_assignment, natural_ovr, positio
 
 fn user_team_context<'a>(
     game: &'a Game,
-) -> Option<(&'a crate::domain::team::Team, Vec<&'a crate::domain::player::Player>)> {
+) -> Option<(
+    &'a crate::domain::team::Team,
+    Vec<&'a crate::domain::player::Player>,
+)> {
     let user_team_id = game.manager.team_id.as_deref()?;
     let team = game.teams.iter().find(|team| team.id == user_team_id)?;
     let roster = game
@@ -58,7 +61,11 @@ fn build_effective_lineup_ids(
         if by_id.contains_key(id.as_str()) && used.insert(id.clone()) {
             valid_saved_ids.push(id.clone());
         } else {
-            eprintln!("[build_effective_lineup_ids] saved_id {} NOT in by_id (keys: {:?}) or already used", id, by_id.keys().collect::<Vec<_>>());
+            eprintln!(
+                "[build_effective_lineup_ids] saved_id {} NOT in by_id (keys: {:?}) or already used",
+                id,
+                by_id.keys().collect::<Vec<_>>()
+            );
         }
     }
 
@@ -290,7 +297,9 @@ fn contract_wage_risk_blocker(
     })
 }
 
-fn minimum_main_roster_blocker(roster: &[&crate::domain::player::Player]) -> Option<serde_json::Value> {
+fn minimum_main_roster_blocker(
+    roster: &[&crate::domain::player::Player],
+) -> Option<serde_json::Value> {
     (roster.len() < 5).then(|| {
         build_blocker(
             "main_roster_minimum",
@@ -304,7 +313,9 @@ fn minimum_main_roster_blocker(roster: &[&crate::domain::player::Player]) -> Opt
     })
 }
 
-fn main_role_coverage_blocker(roster: &[&crate::domain::player::Player]) -> Option<serde_json::Value> {
+fn main_role_coverage_blocker(
+    roster: &[&crate::domain::player::Player],
+) -> Option<serde_json::Value> {
     let role_set: std::collections::HashSet<&'static str> = roster
         .iter()
         .map(|player| role_to_string(&player.position))
@@ -402,10 +413,18 @@ pub fn compute_blocking_actions(game: &Game) -> Vec<serde_json::Value> {
     let current_date = game.clock.current_date.date_naive();
     let effective_lineup_ids = build_effective_lineup_ids(saved_xi_ids, &roster);
 
-    eprintln!("[blockers] team={} active_lineup_ids={:?} effective_ids={:?} roster_count={}", 
-        team.id, saved_xi_ids, effective_lineup_ids, roster.len());
+    eprintln!(
+        "[blockers] team={} active_lineup_ids={:?} effective_ids={:?} roster_count={}",
+        team.id,
+        saved_xi_ids,
+        effective_lineup_ids,
+        roster.len()
+    );
     for p in &roster {
-        eprintln!("[blockers] roster player: id={} pos={:?} nat={:?}", p.id, p.position, p.natural_position);
+        eprintln!(
+            "[blockers] roster player: id={} pos={:?} nat={:?}",
+            p.id, p.position, p.natural_position
+        );
     }
 
     if let Some(blocker) = incomplete_lineup_blocker(&effective_lineup_ids, &roster) {
@@ -453,7 +472,3 @@ pub fn compute_blocking_actions(game: &Game) -> Vec<serde_json::Value> {
 
     blockers
 }
-
-
-
-

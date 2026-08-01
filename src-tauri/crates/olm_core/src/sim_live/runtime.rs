@@ -5,9 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Create a SimLiveSession from an init request, without storing it.
 /// Used by WebSocket handler where the session lives on the task stack.
-pub fn init_session_from_request(
-    request: &SimLiveInitRequest,
-) -> Result<SimLiveSession, String> {
+pub fn init_session_from_request(request: &SimLiveInitRequest) -> Result<SimLiveSession, String> {
     if request.session_id.trim().is_empty() {
         return Err("sessionId is required".to_string());
     }
@@ -361,5 +359,3 @@ fn next_run_to_completion_suffix() -> u128 {
         .map(|elapsed| elapsed.as_nanos())
         .unwrap_or(0)
 }
-
-

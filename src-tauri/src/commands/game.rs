@@ -1,18 +1,18 @@
 use chrono::{Datelike, TimeZone};
+use log::{info, warn};
 use olm_core::domain::player::Player;
 use olm_core::domain::staff::Staff;
-use olm_core::domain::team::{Team, TeamKind};
 use olm_core::domain::stats::LolRole;
-use log::{info, warn};
+use olm_core::domain::team::{Team, TeamKind};
 use serde::Serialize;
 use std::path::PathBuf;
 use tauri::Manager as TauriManager;
 use tauri::State;
 
+use olm_core::clock::GameClock;
 use olm_core::db::save_index::SaveEntry;
 use olm_core::domain::manager::Manager;
 use olm_core::domain::stats::StatsState;
-use olm_core::clock::GameClock;
 use olm_core::game::Game;
 use olm_core::game_setup;
 use olm_core::roster_stability;
@@ -32,9 +32,7 @@ pub struct TeamSelectionData {
 // Local helpers that stay in the Tauri layer
 // ---------------------------------------------------------------------------
 
-use olm_core::competitions::{
-    competition_id_from_team_id_known, sanitize_competition_references,
-};
+use olm_core::competitions::{competition_id_from_team_id_known, sanitize_competition_references};
 
 /// Assemble teams, players, and staff from modular competition data files.
 /// Used by Flow C: the game was created lightweight (empty teams/players),
@@ -91,8 +89,12 @@ fn assemble_world_from_modular_data(
                             player.team_id = Some(format!("{}-{}", cid, tid));
                         }
                     }
-                    if player.morale == 0 { player.morale = 68; }
-                    if player.condition == 0 { player.condition = 100; }
+                    if player.morale == 0 {
+                        player.morale = 68;
+                    }
+                    if player.condition == 0 {
+                        player.condition = 100;
+                    }
                     all_players.push(player);
                 }
             }
@@ -105,7 +107,10 @@ fn assemble_world_from_modular_data(
 
         // Load competition staff
         let staff_count_before = staff.len();
-        eprintln!("[game] loading staff for '{}': staff_file={:?}", cid, manifest.staff_file);
+        eprintln!(
+            "[game] loading staff for '{}': staff_file={:?}",
+            cid, manifest.staff_file
+        );
         match crate::commands::competitions::load_competition_staff(app_handle, manifest) {
             Ok(comp_staff) => {
                 eprintln!("[game] loaded {} staff for '{}'", comp_staff.len(), cid);
@@ -131,10 +136,17 @@ fn assemble_world_from_modular_data(
     // 2. Bootstrap academy seeds from ERL catalog (JSON or legacy .txt fallback)
     let academy_bootstrap_date = "2026-01-01".to_string();
     let pre_count = all_teams.len();
-    game_setup::bootstrap_example_academy_pool_from_example(&mut all_teams, &mut all_players, &academy_bootstrap_date);
+    game_setup::bootstrap_example_academy_pool_from_example(
+        &mut all_teams,
+        &mut all_players,
+        &academy_bootstrap_date,
+    );
     let academy_count = all_teams.len() - pre_count;
     if academy_count > 0 {
-        info!("[game] bootstrapped {} academy teams from ERL catalog", academy_count);
+        info!(
+            "[game] bootstrapped {} academy teams from ERL catalog",
+            academy_count
+        );
     }
     game_setup::remove_free_agents_shadowed_by_academy(&mut all_players, &all_teams);
 
@@ -153,8 +165,12 @@ fn assemble_world_from_modular_data(
         let mut by_team: HashMap<&str, usize> = HashMap::new();
         for s in &staff {
             match s.team_id.as_deref() {
-                None => { *by_team.entry("(free agent)").or_insert(0) += 1; }
-                Some(tid) => { *by_team.entry(tid).or_insert(0) += 1; }
+                None => {
+                    *by_team.entry("(free agent)").or_insert(0) += 1;
+                }
+                Some(tid) => {
+                    *by_team.entry(tid).or_insert(0) += 1;
+                }
             }
         }
         info!("[game] STAFF BREAKDOWN:");
@@ -235,15 +251,12 @@ pub async fn start_new_game_lightweight(
     // Empty world — will be assembled on select_team()
     let new_game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
 
-    info!(
-        "[cmd] start_new_game_lightweight: manager created (no world), storing game in state"
-    );
+    info!("[cmd] start_new_game_lightweight: manager created (no world), storing game in state");
     state.set_game(new_game);
     state.set_stats_state(StatsState::default());
     info!("[cmd] start_new_game_lightweight: completed");
     Ok("ok".to_string())
 }
-
 
 /// Step 2: User picks a team. Assigns manager, generates welcome message, saves to DB.
 /// Supports both Flow A (world pre-loaded) and Flow C (modular assembly).
@@ -262,7 +275,11 @@ pub async fn select_team(
         .ok_or("No active game session".to_string())?;
 
     // Detect flow: if game has no teams, this is Flow C (modular assembly)
-    eprintln!("[select_team] teams.is_empty={}, staff.len={}", game.teams.is_empty(), game.staff.len());
+    eprintln!(
+        "[select_team] teams.is_empty={}, staff.len={}",
+        game.teams.is_empty(),
+        game.staff.len()
+    );
 
     // Non-legacy competition manifests are required for both Flow C assembly and
     // schedule generation; scan them once up front.
@@ -273,7 +290,9 @@ pub async fn select_team(
         .map(|m| m.id.clone())
         .collect();
     if known_competition_ids.is_empty() {
-        return Err("No active competition manifests available; cannot select a team safely".to_string());
+        return Err(
+            "No active competition manifests available; cannot select a team safely".to_string(),
+        );
     }
 
     if game.teams.is_empty() {
@@ -281,7 +300,12 @@ pub async fn select_team(
 
         // Extract competition ID from team ID (e.g. "lec-g2" → "lec")
         let competition_id = competition_id_from_team_id_known(&team_id, &known_competition_ids)
-            .ok_or_else(|| format!("Invalid team ID format '{}': missing competition prefix", team_id))?;
+            .ok_or_else(|| {
+                format!(
+                    "Invalid team ID format '{}': missing competition prefix",
+                    team_id
+                )
+            })?;
 
         // Assemble teams, players, staff from modular data
         let (assembled_teams, assembled_players, assembled_staff) =
@@ -292,39 +316,62 @@ pub async fn select_team(
         game.staff = assembled_staff;
 
         // Auto-populate active lineup for the user's team
-        let roles = [LolRole::Top, LolRole::Jungle, LolRole::Mid, LolRole::Adc, LolRole::Support];
+        let roles = [
+            LolRole::Top,
+            LolRole::Jungle,
+            LolRole::Mid,
+            LolRole::Adc,
+            LolRole::Support,
+        ];
         if let Some(user_team) = game.teams.iter_mut().find(|t| t.id == team_id) {
             let mut used = std::collections::HashSet::new();
             let mut missing_roles = Vec::new();
-            let lineup: Vec<String> = roles.iter().map(|role| {
-                let candidates: Vec<&str> = game.players.iter()
-                    .filter(|p| {
-                        p.team_id.as_deref() == Some(&team_id)
-                        && !used.contains(&p.id)
-                        && (p.position == *role || p.natural_position == *role)
-                    })
-                    .map(|p| p.id.as_str())
-                    .collect();
-                candidates.first().map(|id| {
-                    used.insert(id.to_string());
-                    id.to_string()
-                }).unwrap_or_else(|| {
-                    missing_roles.push(format!("{:?}", role));
-                    String::new()
+            let lineup: Vec<String> = roles
+                .iter()
+                .map(|role| {
+                    let candidates: Vec<&str> = game
+                        .players
+                        .iter()
+                        .filter(|p| {
+                            p.team_id.as_deref() == Some(&team_id)
+                                && !used.contains(&p.id)
+                                && (p.position == *role || p.natural_position == *role)
+                        })
+                        .map(|p| p.id.as_str())
+                        .collect();
+                    candidates
+                        .first()
+                        .map(|id| {
+                            used.insert(id.to_string());
+                            id.to_string()
+                        })
+                        .unwrap_or_else(|| {
+                            missing_roles.push(format!("{:?}", role));
+                            String::new()
+                        })
                 })
-            }).collect();
+                .collect();
             if !missing_roles.is_empty() {
-                warn!("[select_team] auto_lineup: missing players for roles: {:?}", missing_roles);
+                warn!(
+                    "[select_team] auto_lineup: missing players for roles: {:?}",
+                    missing_roles
+                );
             }
             if lineup.iter().all(|id| !id.is_empty()) {
                 user_team.active_lineup_ids = lineup;
-                info!("[select_team] active_lineup_ids set to {:?}", user_team.active_lineup_ids);
+                info!(
+                    "[select_team] active_lineup_ids set to {:?}",
+                    user_team.active_lineup_ids
+                );
             } else {
                 warn!("[select_team] auto_lineup incomplete ({}/5 roles filled), setting empty lineup — user must configure manually", roles.len() - missing_roles.len());
                 user_team.active_lineup_ids = vec![];
             }
         }
-        eprintln!("[select_team] AFTER assembly: staff.len={}", game.staff.len());
+        eprintln!(
+            "[select_team] AFTER assembly: staff.len={}",
+            game.staff.len()
+        );
     }
 
     // Validate team exists
@@ -351,11 +398,19 @@ pub async fn select_team(
 
     for manifest in all_manifests.iter().filter(|m| !m.legacy) {
         let cid = &manifest.id;
-        let team_ids: Vec<String> = game.teams.iter()
-            .filter(|team| team.team_kind != TeamKind::Academy && team.competition_id.as_deref() == Some(cid.as_str()))
-            .map(|team| team.id.clone()).collect();
+        let team_ids: Vec<String> = game
+            .teams
+            .iter()
+            .filter(|team| {
+                team.team_kind != TeamKind::Academy
+                    && team.competition_id.as_deref() == Some(cid.as_str())
+            })
+            .map(|team| team.id.clone())
+            .collect();
 
-        if team_ids.len() < 2 { continue; }
+        if team_ids.len() < 2 {
+            continue;
+        }
 
         let schedule_config = &manifest.schedule;
         // Competitions whose manifest has no schedule splits (e.g. several
@@ -369,25 +424,45 @@ pub async fn select_team(
             continue;
         }
         let mut league = olm_core::schedule::generate_schedule_from_config(
-            manifest, season_year as u32, &team_ids, 0,
+            manifest,
+            season_year as u32,
+            &team_ids,
+            0,
         );
 
         // Generate preseason friendlies for ALL competitions
         let today = game.clock.current_date.format("%Y-%m-%d").to_string();
         let split = &schedule_config.splits[0];
         let season_start = chrono::Utc
-            .with_ymd_and_hms(season_year, split.season_start.month, split.season_start.day, 0, 0, 0)
+            .with_ymd_and_hms(
+                season_year,
+                split.season_start.month,
+                split.season_start.day,
+                0,
+                0,
+                0,
+            )
             .single()
-            .unwrap_or(chrono::Utc.with_ymd_and_hms(season_year, 1, 18, 0, 0, 0).unwrap());
+            .unwrap_or(
+                chrono::Utc
+                    .with_ymd_and_hms(season_year, 1, 18, 0, 0, 0)
+                    .unwrap(),
+            );
         let num_friendlies = schedule_config.preseason_friendlies as usize;
         if num_friendlies > 0 {
             if user_cid == Some(cid.as_str()) {
                 // User's competition: only generate friendlies for the user's team
-                let opponents: Vec<String> = team_ids.iter()
-                    .filter(|tid| tid.as_str() != team_id).cloned().collect();
+                let opponents: Vec<String> = team_ids
+                    .iter()
+                    .filter(|tid| tid.as_str() != team_id)
+                    .cloned()
+                    .collect();
                 if !opponents.is_empty() {
                     let mut friendlies = olm_core::schedule::generate_preseason_friendlies(
-                        &team_id, &opponents, season_start, num_friendlies,
+                        &team_id,
+                        &opponents,
+                        season_start,
+                        num_friendlies,
                     );
                     friendlies.retain(|fixture| fixture.date >= today);
                     olm_core::schedule::append_fixtures(&mut league, friendlies);
@@ -395,11 +470,17 @@ pub async fn select_team(
             } else {
                 // Background competitions: generate friendlies for all teams
                 for tid in &team_ids {
-                    let opponents: Vec<String> = team_ids.iter()
-                        .filter(|t| t.as_str() != tid.as_str()).cloned().collect();
+                    let opponents: Vec<String> = team_ids
+                        .iter()
+                        .filter(|t| t.as_str() != tid.as_str())
+                        .cloned()
+                        .collect();
                     if !opponents.is_empty() {
                         let mut friendlies = olm_core::schedule::generate_preseason_friendlies(
-                            tid, &opponents, season_start, num_friendlies,
+                            tid,
+                            &opponents,
+                            season_start,
+                            num_friendlies,
                         );
                         friendlies.retain(|fixture| fixture.date >= today);
                         olm_core::schedule::append_fixtures(&mut league, friendlies);
@@ -433,17 +514,35 @@ pub async fn select_team(
 
     // Get league name for messages
     let league_display_name = user_cid
-        .and_then(|cid| crate::commands::competitions::load_competition_manifest(&app_handle, cid).ok())
-        .map(|m| format!("{} {}", m.name, m.schedule.splits.first().map(|s| s.name.as_str()).unwrap_or("")))
+        .and_then(|cid| {
+            crate::commands::competitions::load_competition_manifest(&app_handle, cid).ok()
+        })
+        .map(|m| {
+            format!(
+                "{} {}",
+                m.name,
+                m.schedule
+                    .splits
+                    .first()
+                    .map(|s| s.name.as_str())
+                    .unwrap_or("")
+            )
+        })
         .unwrap_or_else(|| "Competition.error".to_string());
 
     // Initialize message template store
     {
         // Look for messages root directory (to find senders)
         let msg_root_candidates = vec![
-            std::env::current_dir().ok().map(|d| d.join("data").join("messages")),
-            std::env::current_dir().ok().map(|d| d.join("../data").join("messages")),
-            std::env::current_dir().ok().map(|d| d.join("src-tauri/data").join("messages")),
+            std::env::current_dir()
+                .ok()
+                .map(|d| d.join("data").join("messages")),
+            std::env::current_dir()
+                .ok()
+                .map(|d| d.join("../data").join("messages")),
+            std::env::current_dir()
+                .ok()
+                .map(|d| d.join("src-tauri/data").join("messages")),
         ];
         let mut messages_root = None;
         for candidate in &msg_root_candidates {
@@ -456,9 +555,7 @@ pub async fn select_team(
         }
 
         // Look for triggers/ subdirectory inside messages root
-        let triggers_candidates = vec![
-            messages_root.as_ref().map(|p| p.join("triggers")),
-        ];
+        let triggers_candidates = vec![messages_root.as_ref().map(|p| p.join("triggers"))];
         for candidate in &triggers_candidates {
             if let Some(path) = candidate {
                 if path.is_dir() {
@@ -506,7 +603,9 @@ pub async fn select_team(
             if let Some(split) = m.schedule.splits.first() {
                 format!(
                     "{} {}, {}",
-                    chrono::Month::try_from(split.season_start.month as u8).map(|mon| mon.name()).unwrap_or("January"),
+                    chrono::Month::try_from(split.season_start.month as u8)
+                        .map(|mon| mon.name())
+                        .unwrap_or("January"),
                     split.season_start.day,
                     season_year
                 )
@@ -531,8 +630,7 @@ pub async fn select_team(
         .teams
         .iter()
         .filter(|team| {
-            team.team_kind != TeamKind::Academy
-                && team.competition_id.as_deref() == user_cid
+            team.team_kind != TeamKind::Academy && team.competition_id.as_deref() == user_cid
         })
         .map(|team| team.name.clone())
         .collect();
@@ -557,7 +655,10 @@ pub async fn select_team(
     let save_id = sm.create_save(&game, &save_name)?;
     state.set_save_id(save_id);
 
-    eprintln!("[select_team] BEFORE return: staff.len={}", game.staff.len());
+    eprintln!(
+        "[select_team] BEFORE return: staff.len={}",
+        game.staff.len()
+    );
     state.set_game(game.clone());
     state.set_stats_state(StatsState::default());
     Ok(game)
@@ -610,8 +711,7 @@ pub async fn load_game(
     });
 
     let mut game = sm.load_game(&save_id)?;
-    let rehydrated =
-        crate::commands::import::rehydrate_game_from_catalog(&app_handle, &mut game);
+    let rehydrated = crate::commands::import::rehydrate_game_from_catalog(&app_handle, &mut game);
     if rehydrated.total() > 0 {
         info!(
             "[cmd] load_game: rehydrated {} missing teams, {} players, {} reassigned players, {} staff from catalog",
@@ -714,8 +814,7 @@ pub async fn get_active_game(
         log::error!("[cmd] get_active_game: no active game in state");
         "No active game session".to_string()
     })?;
-    let rehydrated =
-        crate::commands::import::rehydrate_game_from_catalog(&app_handle, &mut game);
+    let rehydrated = crate::commands::import::rehydrate_game_from_catalog(&app_handle, &mut game);
     if rehydrated.total() > 0 {
         log::info!(
             "[cmd] get_active_game: rehydrated {} missing teams, {} players, {} reassigned players, {} staff from catalog",
@@ -789,7 +888,8 @@ pub async fn get_champions() -> Result<Vec<olm_core::domain::champion::Champion>
     let raw = include_str!("../../../assets/draft/champion-list.json");
     let list: olm_core::champions::ChampionListFile = serde_json::from_str(raw)
         .map_err(|e| format!("Failed to parse champion-list.json: {e}"))?;
-    let catalog: Vec<olm_core::domain::champion::Champion> = list.champions
+    let catalog: Vec<olm_core::domain::champion::Champion> = list
+        .champions
         .into_iter()
         .enumerate()
         .map(|(i, entry)| {

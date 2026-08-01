@@ -5,8 +5,8 @@ pub mod error;
 use commands::*;
 
 use crate::discord_rpc::DiscordRpcState;
-use olm_core::sim_live::SimLiveStoreState;
 use olm_core::db::save_manager::SaveManager;
+use olm_core::sim_live::SimLiveStoreState;
 use olm_core::state::StateManager;
 use std::path::Path;
 use std::sync::Mutex;

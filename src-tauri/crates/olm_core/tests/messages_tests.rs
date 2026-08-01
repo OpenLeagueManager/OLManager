@@ -237,14 +237,20 @@ fn match_result_has_context_with_score() {
 fn victory_has_normal_priority() {
     let msg =
         messages::match_result_message("f1", "A", "B", 2, 0, "t1", "t2", "t1", 1, "2025-01-01");
-    assert_eq!(msg.priority, olm_core::domain::message::MessagePriority::Normal);
+    assert_eq!(
+        msg.priority,
+        olm_core::domain::message::MessagePriority::Normal
+    );
 }
 
 #[test]
 fn defeat_has_high_priority() {
     let msg =
         messages::match_result_message("f1", "A", "B", 0, 2, "t1", "t2", "t1", 1, "2025-01-01");
-    assert_eq!(msg.priority, olm_core::domain::message::MessagePriority::High);
+    assert_eq!(
+        msg.priority,
+        olm_core::domain::message::MessagePriority::High
+    );
 }
 
 // ---------------------------------------------------------------------------

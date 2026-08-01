@@ -1,7 +1,7 @@
 use rand::Rng;
 
-use crate::engine::sim_background::LiveMatchState;
 use crate::engine::report::MatchReport;
+use crate::engine::sim_background::LiveMatchState;
 use crate::engine::types::MatchConfig;
 use crate::engine::types::TeamData;
 
@@ -22,5 +22,3 @@ pub fn simulate_lol<R: Rng>(
     );
     state.run_to_completion(rng)
 }
-
-

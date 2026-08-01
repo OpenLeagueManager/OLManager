@@ -8,12 +8,12 @@
 //! caller — not here.
 
 use chrono::Datelike;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashSet;
 
+use crate::commands;
 use crate::domain::team::TeamKind;
 use crate::game::Game;
-use crate::commands;
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -38,14 +38,23 @@ fn optional_string_arg(args: &Value, names: &[&str]) -> Option<String> {
 fn string_vec_arg(args: &Value, names: &[&str]) -> Result<Vec<String>, String> {
     for name in names {
         if let Some(v) = args.get(name).and_then(|v| v.as_array()) {
-            return Ok(v.iter().filter_map(|x| x.as_str().map(String::from)).collect());
+            return Ok(v
+                .iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect());
         }
     }
-    Err(format!("Missing required array argument: {}", names.join("/")))
+    Err(format!(
+        "Missing required array argument: {}",
+        names.join("/")
+    ))
 }
 
 fn manager_team_id(game: &Game) -> Result<String, String> {
-    game.manager.team_id.clone().ok_or_else(|| "No team assigned".to_string())
+    game.manager
+        .team_id
+        .clone()
+        .ok_or_else(|| "No team assigned".to_string())
 }
 
 // ── Result ───────────────────────────────────────────────────
@@ -82,7 +91,9 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
         }
         "advance_time_with_mode" => {
             crate::turn::process_day(game);
-            Ok(DispatchResult::GameModified(json!({"action":"advanced","game":game})))
+            Ok(DispatchResult::GameModified(
+                json!({"action":"advanced","game":game}),
+            ))
         }
 
         // ── World data ──────────────────────────────────────
@@ -91,11 +102,12 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
             "teams": game.teams.iter().filter(|t| t.team_kind != TeamKind::Academy).cloned().collect::<Vec<_>>(),
             "players": game.players,
         }))),
-        "check_blocking_actions" => {
-            Ok(DispatchResult::Query(json!(crate::time_blockers::compute_blocking_actions(game))))
-        }
+        "check_blocking_actions" => Ok(DispatchResult::Query(json!(
+            crate::time_blockers::compute_blocking_actions(game)
+        ))),
         "relocalize_social_feed" => {
-            let lang = optional_string_arg(args, &["language", "locale"]).unwrap_or_else(|| "en".to_string());
+            let lang = optional_string_arg(args, &["language", "locale"])
+                .unwrap_or_else(|| "en".to_string());
             crate::social::relocalize_social_posts(game, &lang, None);
             Ok(DispatchResult::GameModified(json!(game)))
         }
@@ -113,13 +125,21 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
             Ok(DispatchResult::GameModified(json!(game)))
         }
         "set_training_groups" => {
-            let groups = args.get("groups").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+            let groups = args
+                .get("groups")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
             commands::set_training_groups(game, &manager_team_id(game)?, &groups);
             Ok(DispatchResult::GameModified(json!(game)))
         }
         "set_player_training_focus" => {
             let pid = string_arg(args, &["playerId", "player_id"]).unwrap_or_default();
-            commands::set_player_training_focus(game, &pid, optional_string_arg(args, &["focus"]).as_deref());
+            commands::set_player_training_focus(
+                game,
+                &pid,
+                optional_string_arg(args, &["focus"]).as_deref(),
+            );
             Ok(DispatchResult::GameModified(json!(game)))
         }
 
@@ -130,14 +150,16 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
             Ok(DispatchResult::GameModified(json!(game)))
         }
         "set_lol_tactics" => {
-            let tactics: crate::domain::team::LolTactics = serde_json::from_value(args.get("tactics").cloned().unwrap_or_default())
-                .map_err(|e| format!("invalid tactics: {e}"))?;
+            let tactics: crate::domain::team::LolTactics =
+                serde_json::from_value(args.get("tactics").cloned().unwrap_or_default())
+                    .map_err(|e| format!("invalid tactics: {e}"))?;
             commands::set_lol_tactics(game, &manager_team_id(game)?, tactics);
             Ok(DispatchResult::GameModified(json!(game)))
         }
         "set_team_roles" => {
-            let roles: crate::domain::team::TeamRoles = serde_json::from_value(args.get("roles").cloned().unwrap_or_default())
-                .map_err(|e| format!("invalid roles: {e}"))?;
+            let roles: crate::domain::team::TeamRoles =
+                serde_json::from_value(args.get("roles").cloned().unwrap_or_default())
+                    .map_err(|e| format!("invalid roles: {e}"))?;
             commands::set_team_roles(game, &manager_team_id(game)?, roles);
             Ok(DispatchResult::GameModified(json!(game)))
         }
@@ -156,8 +178,9 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
             Ok(DispatchResult::GameModified(json!(game)))
         }
         "set_weekly_scrim_plans" => {
-            let plans: Vec<Vec<String>> = serde_json::from_value(args.get("plans").cloned().unwrap_or_default())
-                .map_err(|e| format!("invalid scrim plans: {e}"))?;
+            let plans: Vec<Vec<String>> =
+                serde_json::from_value(args.get("plans").cloned().unwrap_or_default())
+                    .map_err(|e| format!("invalid scrim plans: {e}"))?;
             commands::set_weekly_scrim_plans(game, &manager_team_id(game)?, plans);
             Ok(DispatchResult::GameModified(json!(game)))
         }
@@ -165,7 +188,15 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
             let raw = args.get("slots").and_then(|v| v.as_u64()).unwrap_or(3) as u8;
             let tid = manager_team_id(game)?;
             // Sync with the full logic
-            let effective = crate::training::effective_scrim_slots_u8(raw, &game.teams.iter().find(|t| t.id == tid).map(|t| &t.training_schedule).unwrap_or(&crate::domain::team::TrainingSchedule::Balanced));
+            let effective = crate::training::effective_scrim_slots_u8(
+                raw,
+                &game
+                    .teams
+                    .iter()
+                    .find(|t| t.id == tid)
+                    .map(|t| &t.training_schedule)
+                    .unwrap_or(&crate::domain::team::TrainingSchedule::Balanced),
+            );
             commands::set_weekly_scrim_slots(game, &tid, effective);
             Ok(DispatchResult::GameModified(json!(game)))
         }
@@ -188,7 +219,11 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
         }
         "finalize_weekly_scrim_setup" => {
             let tid = manager_team_id(game)?;
-            let week_key = format!("{}-W{}", game.clock.current_date.iso_week().year(), game.clock.current_date.iso_week().week());
+            let week_key = format!(
+                "{}-W{}",
+                game.clock.current_date.iso_week().year(),
+                game.clock.current_date.iso_week().week()
+            );
             if let Some(team) = game.teams.iter_mut().find(|t| t.id == tid) {
                 team.scrim_setup_locked_week_key = Some(week_key);
             }
@@ -196,7 +231,11 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
         }
         "auto_configure_weekly_scrim_setup" => {
             let tid = manager_team_id(game)?;
-            let week_key = format!("{}-W{}", game.clock.current_date.iso_week().year(), game.clock.current_date.iso_week().week());
+            let week_key = format!(
+                "{}-W{}",
+                game.clock.current_date.iso_week().year(),
+                game.clock.current_date.iso_week().week()
+            );
             let _current_weekday = game.clock.current_date.weekday().num_days_from_monday() as u8;
             if let Some(team) = game.teams.iter_mut().find(|t| t.id == tid) {
                 if team.scrim_setup_locked_week_key.as_deref() == Some(&week_key) {
@@ -211,7 +250,11 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
         "cancel_todays_scrims" => {
             let tid = manager_team_id(game)?;
             let _current_weekday = game.clock.current_date.weekday().num_days_from_monday() as u8;
-            let _week_key = format!("{}-W{}", game.clock.current_date.iso_week().year(), game.clock.current_date.iso_week().week());
+            let _week_key = format!(
+                "{}-W{}",
+                game.clock.current_date.iso_week().year(),
+                game.clock.current_date.iso_week().week()
+            );
             if let Some(team) = game.teams.iter_mut().find(|t| t.id == tid) {
                 for (idx, opp) in team.weekly_scrim_opponent_ids.iter_mut().enumerate() {
                     *opp = String::new();
@@ -228,9 +271,20 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
             let slot_index = args.get("slotIndex").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
             let decision = string_arg(args, &["decision"])?;
             let _tid = manager_team_id(game)?;
-            if let Some(report) = game.teams.iter_mut().filter_map(|t| t.scrim_reports.iter_mut().find(|r| r.slot_index == slot_index && r.post_decision.is_none())).next() {
+            if let Some(report) = game
+                .teams
+                .iter_mut()
+                .filter_map(|t| {
+                    t.scrim_reports
+                        .iter_mut()
+                        .find(|r| r.slot_index == slot_index && r.post_decision.is_none())
+                })
+                .next()
+            {
                 report.post_decision = Some(match decision.as_str() {
-                    "ContinuePlan" | "PushThrough" => crate::domain::team::PostScrimDecision::ContinuePlan,
+                    "ContinuePlan" | "PushThrough" => {
+                        crate::domain::team::PostScrimDecision::ContinuePlan
+                    }
                     "DayOff" => crate::domain::team::PostScrimDecision::DayOff,
                     "VodReview" => crate::domain::team::PostScrimDecision::VodReview,
                     "MentalReset" => crate::domain::team::PostScrimDecision::MentalReset,
@@ -257,15 +311,26 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
             Ok(DispatchResult::GameModified(json!(game)))
         }
         "delegate_scrim_decision" => {
-            if game.day_phase != crate::game::DayPhase::ScrimBlock && game.day_phase != crate::game::DayPhase::ReviewBlock {
-                return Err("Delegation is only available during ScrimBlock/ReviewBlock".to_string());
+            if game.day_phase != crate::game::DayPhase::ScrimBlock
+                && game.day_phase != crate::game::DayPhase::ReviewBlock
+            {
+                return Err(
+                    "Delegation is only available during ScrimBlock/ReviewBlock".to_string()
+                );
             }
             let tid = manager_team_id(game)?;
             if let Some(team) = game.teams.iter_mut().find(|t| t.id == tid) {
                 for (idx, opp) in team.weekly_scrim_opponent_ids.iter_mut().enumerate() {
-                    if opp.is_empty() { continue; }
-                    if let Some(report) = team.scrim_reports.iter_mut().find(|r| r.slot_index == idx as u8 && r.post_decision.is_none()) {
-                        report.post_decision = Some(crate::domain::team::PostScrimDecision::ContinuePlan);
+                    if opp.is_empty() {
+                        continue;
+                    }
+                    if let Some(report) = team
+                        .scrim_reports
+                        .iter_mut()
+                        .find(|r| r.slot_index == idx as u8 && r.post_decision.is_none())
+                    {
+                        report.post_decision =
+                            Some(crate::domain::team::PostScrimDecision::ContinuePlan);
                     }
                 }
             }
@@ -288,8 +353,14 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
             Ok(DispatchResult::GameModified(json!(game)))
         }
         "delete_messages" => {
-            let ids: HashSet<String> = args.get("ids").and_then(|v| v.as_array())
-                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+            let ids: HashSet<String> = args
+                .get("ids")
+                .and_then(|v| v.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default();
             commands::delete_messages(game, &ids);
             Ok(DispatchResult::GameModified(json!(game)))
@@ -375,9 +446,14 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
         "demote_main_player_to_academy" => {
             let pid = string_arg(args, &["playerId", "player_id"])?;
             let tid = manager_team_id(game)?;
-            let aid = game.teams.iter()
-                .find(|t| t.parent_team_id.as_deref() == Some(&tid) && t.team_kind == TeamKind::Academy)
-                .map(|t| t.id.clone()).unwrap_or_default();
+            let aid = game
+                .teams
+                .iter()
+                .find(|t| {
+                    t.parent_team_id.as_deref() == Some(&tid) && t.team_kind == TeamKind::Academy
+                })
+                .map(|t| t.id.clone())
+                .unwrap_or_default();
             commands::demote_academy_player(game, &pid, &aid);
             Ok(DispatchResult::GameModified(json!(game)))
         }
@@ -385,8 +461,14 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
         // ── Champions ───────────────────────────────────────
         "set_player_champion_training_target" => {
             let pid = string_arg(args, &["playerId", "player_id"]).unwrap_or_default();
-            let prio = args.get("priorityIndex").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-            let cid = optional_string_arg(args, &["championId", "champion_id", "championKey", "champion_key"]);
+            let prio = args
+                .get("priorityIndex")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as usize;
+            let cid = optional_string_arg(
+                args,
+                &["championId", "champion_id", "championKey", "champion_key"],
+            );
             crate::champions::set_player_training_target(game, &pid, prio, cid)
                 .map_err(|e| e.to_string())?;
             Ok(DispatchResult::GameModified(json!(game)))
@@ -403,8 +485,13 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
             let last_name = optional_string_arg(args, &["lastName", "last_name"]);
             let nickname = optional_string_arg(args, &["nickname"]);
             let nationality = optional_string_arg(args, &["nationality"]);
-            commands::update_manager_profile(game, first_name.as_deref(), last_name.as_deref(),
-                nickname.as_deref(), nationality.as_deref());
+            commands::update_manager_profile(
+                game,
+                first_name.as_deref(),
+                last_name.as_deref(),
+                nickname.as_deref(),
+                nationality.as_deref(),
+            );
             Ok(DispatchResult::GameModified(json!(game)))
         }
 
@@ -426,4 +513,3 @@ pub fn dispatch(command: &str, args: &Value, game: &mut Game) -> Result<Dispatch
         _ => Err(format!("Unknown command: {command}")),
     }
 }
-

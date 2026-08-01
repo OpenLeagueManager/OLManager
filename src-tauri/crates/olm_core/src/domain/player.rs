@@ -11,7 +11,10 @@ pub struct Player {
     pub id: String,
     pub match_name: String,
     pub full_name: String,
-    #[serde(default, deserialize_with = "crate::domain::serde_util::null_to_default")]
+    #[serde(
+        default,
+        deserialize_with = "crate::domain::serde_util::null_to_default"
+    )]
     pub date_of_birth: String,
     #[serde(default)]
     pub nationality: String,
@@ -39,7 +42,7 @@ pub struct Player {
     #[serde(default = "default_condition")]
     pub condition: u8, // 0-100 (short-term energy; depletes during matches, recovers daily)
     #[serde(default = "default_morale")]
-    pub morale: u8,    // 0-100
+    pub morale: u8, // 0-100
     /// Long-term physical shape (0–100). Determines how fast condition depletes and
     /// recovers. Changes slowly over weeks.
     #[serde(default = "default_fitness")]
@@ -131,7 +134,6 @@ pub enum Footedness {
 pub struct PlayerAttributes {
     // These 9 attributes are used by the engine simulation.
     // Aliases provide backward compat with old save files (football-era names + removed fields).
-
     /// Mechanical skill — replaces reaction_speed
     #[serde(alias = "dribbling", alias = "reaction_speed")]
     pub mechanics: u8,
@@ -161,7 +163,11 @@ pub struct PlayerAttributes {
     pub champion_pool: u8,
 
     /// Discipline / composure — replaces positional_defense
-    #[serde(default = "default_attr", alias = "composure", alias = "positional_defense")]
+    #[serde(
+        default = "default_attr",
+        alias = "composure",
+        alias = "positional_defense"
+    )]
     pub discipline: u8,
 
     /// Mental resilience / stamina — replaces durability
@@ -762,13 +768,19 @@ mod tests {
         }))
         .expect("player with was_released=true should deserialize");
 
-        assert!(player.was_released, "was_released should be true after deserialization");
+        assert!(
+            player.was_released,
+            "was_released should be true after deserialization"
+        );
 
         // Roundtrip through serde
         let json = serde_json::to_string(&player).expect("should serialize");
         let restored: Player = serde_json::from_str(&json).expect("should deserialize roundtrip");
 
-        assert!(restored.was_released, "was_released should survive serde roundtrip");
+        assert!(
+            restored.was_released,
+            "was_released should survive serde roundtrip"
+        );
 
         // Default (missing field) should be false
         let default_player: Player = serde_json::from_value(serde_json::json!({
@@ -797,7 +809,9 @@ mod tests {
         }))
         .expect("player without was_released should deserialize");
 
-        assert!(!default_player.was_released, "was_released should default to false");
+        assert!(
+            !default_player.was_released,
+            "was_released should default to false"
+        );
     }
 }
-

@@ -1,6 +1,6 @@
+use crate::domain::player::Player;
 use crate::game::Game;
 use chrono::{Datelike, NaiveDate};
-use crate::domain::player::Player;
 use serde::{Deserialize, Serialize};
 
 /// A single award entry (player + stat value).
@@ -162,9 +162,9 @@ pub fn compute_season_awards(game: &Game) -> SeasonAwards {
 #[cfg(test)]
 mod tests {
     use super::compute_season_awards;
-    use chrono::{TimeZone, Utc};
     use crate::domain::manager::Manager;
     use crate::domain::player::{LolRole, Player, PlayerAttributes, PlayerSeasonStats};
+    use chrono::{TimeZone, Utc};
 
     use crate::domain::team::Team;
 
@@ -424,7 +424,4 @@ mod tests {
             .collect();
         assert_eq!(young_player_ids, vec!["young-four-apps", "young-eligible"]);
     }
-
-
 }
-

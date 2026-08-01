@@ -1,10 +1,10 @@
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use std::collections::HashMap;
 
 use super::{
-    as_mut_object, create_champions, create_structures, extract_runtime_team_tactics,
-    neutral_timer_templates, LolChampionCombatProfileInput, LolChampionUltimateInput,
-    RuntimeTeamBuffState, RuntimeTeamTactics, SimulatorAiMode,
+    LolChampionCombatProfileInput, LolChampionUltimateInput, RuntimeTeamBuffState,
+    RuntimeTeamTactics, SimulatorAiMode, as_mut_object, create_champions, create_structures,
+    extract_runtime_team_tactics, neutral_timer_templates,
 };
 
 pub(super) fn default_runtime_state() -> Value {

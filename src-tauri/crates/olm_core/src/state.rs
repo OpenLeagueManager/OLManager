@@ -1,6 +1,6 @@
+use crate::domain::stats::StatsState;
 use crate::game::Game;
 use crate::live_match_manager::LiveMatchSession;
-use crate::domain::stats::StatsState;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::OnceLock;
@@ -159,13 +159,13 @@ impl StateManager {
 mod tests {
     use super::StateManager;
     use crate::clock::GameClock;
-    use crate::game::Game;
-    use crate::live_match_manager::{self, MatchMode};
-    use chrono::{TimeZone, Utc};
-    use crate::domain::league::{Fixture, MatchType, FixtureStatus, League, StandingEntry};
+    use crate::domain::league::{Fixture, FixtureStatus, League, MatchType, StandingEntry};
     use crate::domain::manager::Manager;
     use crate::domain::player::{LolRole, Player, PlayerAttributes};
     use crate::domain::team::Team;
+    use crate::game::Game;
+    use crate::live_match_manager::{self, MatchMode};
+    use chrono::{TimeZone, Utc};
 
     fn default_attrs() -> PlayerAttributes {
         PlayerAttributes {
@@ -369,4 +369,3 @@ mod tests {
         assert_eq!(save_id, Some("save-99".to_string()));
     }
 }
-

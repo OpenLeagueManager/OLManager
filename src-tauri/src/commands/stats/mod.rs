@@ -49,4 +49,3 @@ pub fn get_team_match_history(
 ) -> Result<Vec<TeamMatchHistoryEntryDto>, String> {
     get_team_match_history_internal(&state, &team_id, limit)
 }
-

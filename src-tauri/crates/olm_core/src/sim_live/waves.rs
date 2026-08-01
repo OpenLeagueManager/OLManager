@@ -69,4 +69,3 @@ pub(super) fn build_minion(
         path_index: 1,
     }
 }
-

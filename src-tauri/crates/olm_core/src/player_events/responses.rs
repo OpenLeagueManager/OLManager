@@ -1,9 +1,9 @@
-use crate::game::Game;
-use chrono::Days;
 use crate::domain::player::{
     ContractRenewalState, Player, PlayerPromise, PlayerPromiseKind, RecentTreatmentMemory,
     RenewalSessionOutcome, RenewalSessionStatus,
 };
+use crate::game::Game;
+use chrono::Days;
 use rand::RngExt;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -731,7 +731,3 @@ pub fn apply_player_response(
         i18n_params: outcome.i18n_params,
     })
 }
-
-
-
-

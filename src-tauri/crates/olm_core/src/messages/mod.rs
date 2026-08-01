@@ -19,7 +19,11 @@ fn format_fee(fee: u64) -> String {
 
 /// Apply sender info (name, role, icon) from the senders store to a message.
 /// Falls back silently if the sender ID is not found.
-pub fn with_sender(mut msg: InboxMessage, sender_id: &str, i18n_params: Vec<(&str, &str)>) -> InboxMessage {
+pub fn with_sender(
+    mut msg: InboxMessage,
+    sender_id: &str,
+    i18n_params: Vec<(&str, &str)>,
+) -> InboxMessage {
     if let Some(sender) = crate::messages::template_store::get_sender(sender_id) {
         let params: std::collections::HashMap<String, String> = i18n_params
             .iter()
@@ -157,7 +161,10 @@ pub fn welcome_message(team_name: &str, team_id: &str, date: &str, lang: &str) -
 
 pub fn season_schedule_message(league_name: &str, season_start: &str, date: &str) -> InboxMessage {
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "season_schedule", "season_schedule", date, "en",
+        "season_schedule",
+        "season_schedule",
+        date,
+        "en",
         vec![("league", league_name), ("start", season_start)],
     ) {
         return msg;
@@ -208,7 +215,10 @@ pub fn season_schedule_message(league_name: &str, season_start: &str, date: &str
 
 pub fn staff_advice_message(team_name: &str, team_id: &str, date: &str) -> InboxMessage {
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "staff_advice", &format!("staff_{team_id}"), date, "en",
+        "staff_advice",
+        &format!("staff_{team_id}"),
+        date,
+        "en",
         vec![("team", team_name)],
     ) {
         return msg;
@@ -247,7 +257,10 @@ pub fn staff_advice_message(team_name: &str, team_id: &str, date: &str) -> Inbox
 
 pub fn board_expectations_message(team_name: &str, team_id: &str, date: &str) -> InboxMessage {
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "board_expectations", &format!("expectations_{team_id}"), date, "en",
+        "board_expectations",
+        &format!("expectations_{team_id}"),
+        date,
+        "en",
         vec![("team", team_name)],
     ) {
         return msg;
@@ -290,7 +303,10 @@ pub fn board_expectations_message(team_name: &str, team_id: &str, date: &str) ->
 pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> InboxMessage {
     let fee_display = format_fee(fee);
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "transfer_complete", &format!("transfer_{player_name}"), date, "en",
+        "transfer_complete",
+        &format!("transfer_{player_name}"),
+        date,
+        "en",
         vec![("player", player_name), ("fee", &fee_display)],
     ) {
         return msg;
@@ -328,8 +344,15 @@ pub fn incoming_transfer_offer_message(
 ) -> InboxMessage {
     let fee_display = format_fee(fee);
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "transfer_offer", &format!("offer_{offer_id}"), date, "en",
-        vec![("player", player_name), ("buyer", buying_team_name), ("fee", &fee_display)],
+        "transfer_offer",
+        &format!("offer_{offer_id}"),
+        date,
+        "en",
+        vec![
+            ("player", player_name),
+            ("buyer", buying_team_name),
+            ("fee", &fee_display),
+        ],
     ) {
         return msg;
     }
@@ -369,4 +392,3 @@ pub fn incoming_transfer_offer_message(
     )
     .with_sender_i18n("be.sender.directorOfFootball", "be.role.directorOfFootball")
 }
-

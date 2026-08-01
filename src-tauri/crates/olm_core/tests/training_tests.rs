@@ -1,4 +1,6 @@
 use chrono::{TimeZone, Utc};
+use olm_core::champions::{ChampionMasteryEntry, ChampionMetaEntry};
+use olm_core::clock::GameClock;
 use olm_core::domain::manager::Manager;
 use olm_core::domain::player::LolRole;
 use olm_core::domain::player::{Player, PlayerAttributes};
@@ -7,8 +9,6 @@ use olm_core::domain::team::{
     PostScrimDecision, ScrimChampionPick, ScrimFocus, ScrimIssue, ScrimReport, ScrimStatus, Team,
     TrainingFocus, TrainingIntensity, TrainingSchedule,
 };
-use olm_core::champions::{ChampionMasteryEntry, ChampionMetaEntry};
-use olm_core::clock::GameClock;
 use olm_core::game::Game;
 use olm_core::training;
 
@@ -314,8 +314,6 @@ fn light_schedule_trains_two_days() {
     assert!(!TrainingSchedule::Light.is_training_day(5));
     assert!(!TrainingSchedule::Light.is_training_day(6));
 }
-
-
 
 #[test]
 fn higher_medical_facility_level_improves_recovery_on_rest_days() {
@@ -1065,13 +1063,14 @@ fn rival_players_get_auto_targets_and_gain_mastery_on_training() {
         .players
         .iter()
         .find(|player| player.id == "p-rival")
-        .and_then(|player| olm_core::champions::training_targets_for_player(player).first().cloned())
+        .and_then(|player| {
+            olm_core::champions::training_targets_for_player(player)
+                .first()
+                .cloned()
+        })
         .expect("rival player should auto-assign a primary mastery target");
-    let before_mastery = olm_core::champions::mastery_for_player_champion(
-        &game,
-        "p-rival",
-        &trained_champion,
-    );
+    let before_mastery =
+        olm_core::champions::mastery_for_player_champion(&game, "p-rival", &trained_champion);
 
     for _ in 0..40 {
         if let Some(player) = game
@@ -1095,11 +1094,8 @@ fn rival_players_get_auto_targets_and_gain_mastery_on_training() {
         "rival player should auto-assign mastery targets"
     );
 
-    let after_mastery = olm_core::champions::mastery_for_player_champion(
-        &game,
-        "p-rival",
-        &trained_champion,
-    );
+    let after_mastery =
+        olm_core::champions::mastery_for_player_champion(&game, "p-rival", &trained_champion);
     assert!(
         after_mastery > before_mastery,
         "rival mastery should grow for trained target {} (before={}, after={})",

@@ -199,12 +199,12 @@ mod tests {
 
     /// Generate a minimal valid Game JSON.
     fn minimal_game_json() -> String {
-        use chrono::{TimeZone, Utc};
-        use crate::domain::player::PlayerAttributes;
-        use crate::domain::stats::LolRole;
-        use crate::domain::staff::{StaffAttributes, StaffRole};
         use crate::clock::GameClock;
+        use crate::domain::player::PlayerAttributes;
+        use crate::domain::staff::{StaffAttributes, StaffRole};
+        use crate::domain::stats::LolRole;
         use crate::game::Game;
+        use chrono::{TimeZone, Utc};
 
         let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
         let clock = GameClock::new(start);
@@ -285,10 +285,10 @@ mod tests {
     }
 
     fn legacy_game_json_with_mirrored_starting_xi() -> String {
-        use chrono::{TimeZone, Utc};
+        use crate::clock::GameClock;
         use crate::domain::player::{Player, PlayerAttributes};
         use crate::domain::stats::LolRole;
-        use crate::clock::GameClock;
+        use chrono::{TimeZone, Utc};
 
         let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
         let clock = GameClock::new(start);
@@ -828,6 +828,3 @@ mod tests {
         assert!(dir.path().join("saves.db.migrated").exists());
     }
 }
-
-
-

@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{RuntimeEvent, RuntimeState, EVENT_CAP, SKIP_FAST_MODE_EXTRA_KEY};
+use super::{EVENT_CAP, RuntimeEvent, RuntimeState, SKIP_FAST_MODE_EXTRA_KEY};
 
 pub fn push_event(events: &mut Vec<RuntimeEvent>, at: f64, text: &str, kind: &str) {
     events.push(RuntimeEvent {

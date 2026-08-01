@@ -7,8 +7,8 @@ pub use responses::{
 };
 
 use crate::contracts::contract_warning_stage;
-use crate::game::Game;
 use crate::domain::message::InboxMessage;
+use crate::game::Game;
 use rand::RngExt;
 
 use message_builders::{
@@ -229,4 +229,3 @@ pub fn check_player_events(game: &mut Game) {
     game.messages.extend(new_messages);
     generate_contract_concern_messages(game, true);
 }
-

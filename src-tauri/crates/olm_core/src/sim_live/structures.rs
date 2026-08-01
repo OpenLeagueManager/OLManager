@@ -1,11 +1,11 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use std::cmp::Ordering;
 
 use super::{
-    champion_is_banished, dist, normalized_team, ChampionRuntime, MinionRuntime, StructureRuntime,
-    StructureSeed, Vec2, INHIBITOR_HP, NEXUS_HP, STRUCTURE_LAYOUT, TOWER_INHIB_HP, TOWER_INNER_HP,
-    TOWER_NEXUS_HP, TOWER_OUTER_HP,
+    ChampionRuntime, INHIBITOR_HP, MinionRuntime, NEXUS_HP, STRUCTURE_LAYOUT, StructureRuntime,
+    StructureSeed, TOWER_INHIB_HP, TOWER_INNER_HP, TOWER_NEXUS_HP, TOWER_OUTER_HP, Vec2,
+    champion_is_banished, dist, normalized_team,
 };
 
 pub(super) enum StructureAttackTarget {

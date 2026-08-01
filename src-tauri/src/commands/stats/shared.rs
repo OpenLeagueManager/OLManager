@@ -64,5 +64,3 @@ pub(super) fn ensure_team_exists(state: &StateManager, team_id: &str) -> Result<
         Err("Team not found".to_string())
     }
 }
-
-

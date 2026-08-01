@@ -551,4 +551,3 @@ pub fn default_social_templates(data_base: Option<&Path>) -> Vec<SocialTemplate>
         })
         .collect()
 }
-

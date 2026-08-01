@@ -668,9 +668,15 @@ pub struct ScrimReport {
 #[cfg_attr(feature = "typescript", derive(TS))]
 #[cfg_attr(feature = "typescript", ts(export))]
 pub struct TeamColors {
-    #[serde(default, deserialize_with = "crate::domain::serde_util::null_to_default")]
+    #[serde(
+        default,
+        deserialize_with = "crate::domain::serde_util::null_to_default"
+    )]
     pub primary: String,
-    #[serde(default, deserialize_with = "crate::domain::serde_util::null_to_default")]
+    #[serde(
+        default,
+        deserialize_with = "crate::domain::serde_util::null_to_default"
+    )]
     pub secondary: String,
 }
 

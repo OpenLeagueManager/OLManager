@@ -181,5 +181,3 @@ pub fn create_live_match(
         user_side,
     })
 }
-
-

@@ -1,7 +1,7 @@
 use super::format_money;
+use crate::domain::team::{Sponsorship, SponsorshipBonusCriterion};
 use crate::finances::push_sponsor_accepted_mail;
 use crate::game::Game;
-use crate::domain::team::{Sponsorship, SponsorshipBonusCriterion};
 use rand::RngExt;
 
 fn parse_sponsor_amount(raw: &str) -> Option<u64> {

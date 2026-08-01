@@ -1,6 +1,6 @@
-use crate::game::Game;
 use crate::domain::message::{InboxMessage, MessageCategory, MessageContext, MessagePriority};
 use crate::domain::player::Player;
+use crate::game::Game;
 use std::collections::HashMap;
 
 fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
@@ -225,11 +225,11 @@ mod tests {
         effective_potential_cap, process_potential_research, start_potential_research,
     };
     use crate::clock::GameClock;
-    use crate::game::Game;
-    use chrono::{TimeZone, Utc};
     use crate::domain::manager::Manager;
     use crate::domain::player::{LolRole, Player, PlayerAttributes};
     use crate::domain::team::Team;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
 
     fn attrs(stat: u8) -> PlayerAttributes {
         PlayerAttributes {
@@ -366,4 +366,3 @@ mod tests {
         );
     }
 }
-

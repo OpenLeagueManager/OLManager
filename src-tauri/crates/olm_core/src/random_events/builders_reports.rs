@@ -1,6 +1,6 @@
 use super::{action, params};
-use crate::narrative::{NarrativeSelector, load_default_content_pack};
 use crate::domain::message::*;
+use crate::narrative::{NarrativeSelector, load_default_content_pack};
 use rand::RngExt;
 
 // ---------------------------------------------------------------------------
@@ -287,7 +287,10 @@ pub(super) fn rival_interest_message(
     date: &str,
 ) -> InboxMessage {
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "rival_interest", msg_id, date, "en",
+        "rival_interest",
+        msg_id,
+        date,
+        "en",
         vec![("player", player_name), ("rival", rival_name)],
     ) {
         return msg;
@@ -429,4 +432,3 @@ pub(super) fn rival_interest_message(
     )
     .with_sender_i18n("be.sender.allioPodcast", "be.role.allioPodcast")
 }
-

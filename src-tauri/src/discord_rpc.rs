@@ -22,7 +22,10 @@ pub struct DiscordRpcState(pub Mutex<DiscordRpcInner>);
 impl DiscordRpcState {
     /// Creates a new state with no active client and no pending key.
     pub fn new() -> Self {
-        Self(Mutex::new(DiscordRpcInner { client: None, pending_key: None }))
+        Self(Mutex::new(DiscordRpcInner {
+            client: None,
+            pending_key: None,
+        }))
     }
 }
 
@@ -40,14 +43,20 @@ mod tests {
     fn test_initial_state_client_is_none() {
         let state = DiscordRpcState::new();
         let guard = state.0.lock().unwrap();
-        assert!(guard.client.is_none(), "fresh state should hold None client");
+        assert!(
+            guard.client.is_none(),
+            "fresh state should hold None client"
+        );
     }
 
     #[test]
     fn test_initial_state_pending_key_is_none() {
         let state = DiscordRpcState::new();
         let guard = state.0.lock().unwrap();
-        assert!(guard.pending_key.is_none(), "fresh state should have no pending key");
+        assert!(
+            guard.pending_key.is_none(),
+            "fresh state should have no pending key"
+        );
     }
 
     #[test]
@@ -62,7 +71,10 @@ mod tests {
         }
 
         let guard = state.0.lock().unwrap();
-        assert!(guard.client.is_some(), "client should persist after lock release");
+        assert!(
+            guard.client.is_some(),
+            "client should persist after lock release"
+        );
     }
 
     #[test]

@@ -12,7 +12,9 @@ use olm_core::end_of_season::{
     is_season_complete, process_background_seasons, process_end_of_season, process_end_of_split,
 };
 use olm_core::game::{BoardObjective, Game, ObjectiveType};
-use olm_core::generator::definitions::{CompetitionManifest, ScheduleConfig, SeasonStart, SplitConfig};
+use olm_core::generator::definitions::{
+    CompetitionManifest, ScheduleConfig, SeasonStart, SplitConfig,
+};
 use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
@@ -346,10 +348,16 @@ fn background_league_with_missing_manifest_records_history_without_regeneration(
         .find(|league| league.id == "stale-bg")
         .expect("background league should remain present");
     assert_eq!(background_league.season, 2026);
-    assert_eq!(background_league.competition_id.as_deref(), Some("removed-competition"));
-    assert!(background_league.fixtures.iter().all(|fixture| {
-        fixture.status == FixtureStatus::Completed
-    }));
+    assert_eq!(
+        background_league.competition_id.as_deref(),
+        Some("removed-competition")
+    );
+    assert!(
+        background_league
+            .fixtures
+            .iter()
+            .all(|fixture| { fixture.status == FixtureStatus::Completed })
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -1083,10 +1091,12 @@ fn next_season_generation_ignores_academy_team_ids() {
 
     let next_league = game.leagues.first().expect("next league should exist");
     assert_eq!(next_league.standings.len(), 10);
-    assert!(!next_league
-        .standings
-        .iter()
-        .any(|entry| entry.team_id == "academy-1"));
+    assert!(
+        !next_league
+            .standings
+            .iter()
+            .any(|entry| entry.team_id == "academy-1")
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -1355,9 +1365,15 @@ fn replenish_depleted_rosters_excludes_was_released_players() {
 
     fn make_free_agent(id: &str, was_released: bool) -> Player {
         let attrs = PlayerAttributes {
-            mental_resilience: 60, champion_pool: 60, laning: 60,
-            mechanics: 60, macro_play: 60, consistency: 60,
-            discipline: 60, teamfighting: 60, shotcalling: 60,
+            mental_resilience: 60,
+            champion_pool: 60,
+            laning: 60,
+            mechanics: 60,
+            macro_play: 60,
+            consistency: 60,
+            discipline: 60,
+            teamfighting: 60,
+            shotcalling: 60,
         };
         let mut p = Player::new(
             id.to_string(),
@@ -1412,14 +1428,7 @@ fn replenish_depleted_rosters_excludes_was_released_players() {
     team1.finance = 10_000_000;
     let team2 = make_team("team2", "Full FC");
 
-    let mut game = Game::new(
-        clock,
-        manager,
-        vec![team1, team2],
-        players,
-        vec![],
-        vec![],
-    );
+    let mut game = Game::new(clock, manager, vec![team1, team2], players, vec![], vec![]);
 
     // Add a completed league so process_end_of_season runs fully
     let fixtures = vec![

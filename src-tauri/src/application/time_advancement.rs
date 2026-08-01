@@ -316,6 +316,3 @@ pub fn advance_time_with_mode(
         }
     }
 }
-
-
-

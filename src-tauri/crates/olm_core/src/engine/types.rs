@@ -74,7 +74,6 @@ impl PlayerData {
             + self.mental_resilience as f64)
             / 9.0
     }
-
 }
 
 // ---------------------------------------------------------------------------
@@ -283,6 +282,3 @@ impl Zone {
         self == Zone::attacking_box(attacking_side)
     }
 }
-
-
-

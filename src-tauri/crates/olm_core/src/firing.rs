@@ -1,5 +1,5 @@
-use crate::game::Game;
 use crate::domain::message::*;
+use crate::game::Game;
 use log::info;
 use std::collections::HashMap;
 
@@ -189,9 +189,9 @@ fn send_final_warning(game: &mut Game) {
 mod tests {
     use super::*;
     use crate::clock::GameClock;
-    use chrono::{TimeZone, Utc};
     use crate::domain::manager::{Manager, ManagerCareerEntry};
     use crate::domain::team::Team;
+    use chrono::{TimeZone, Utc};
 
     fn make_game(satisfaction: u8) -> Game {
         let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 10, 15, 12, 0, 0).unwrap());
@@ -346,4 +346,3 @@ mod tests {
         assert!(game.messages.is_empty());
     }
 }
-

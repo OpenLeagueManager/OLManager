@@ -80,12 +80,12 @@ pub fn load_competition_manifest(
 // ---------------------------------------------------------------------------
 
 /// Load team data for a competition from its manifest's `teams_file` path.
-pub fn load_teams(
-    data_base: &Path,
-    manifest: &CompetitionManifest,
-) -> Result<Vec<Team>, String> {
+pub fn load_teams(data_base: &Path, manifest: &CompetitionManifest) -> Result<Vec<Team>, String> {
     let teams_path = data_base.join(&manifest.teams_file);
-    info!("[competitions] loading teams for '{}' from {:?}", manifest.id, teams_path);
+    info!(
+        "[competitions] loading teams for '{}' from {:?}",
+        manifest.id, teams_path
+    );
     let json = std::fs::read_to_string(&teams_path).map_err(|e| {
         format!(
             "Failed to read teams file '{}' for '{}': {}",
@@ -113,15 +113,18 @@ pub fn load_players(
     manifest: &CompetitionManifest,
 ) -> Result<Vec<Player>, String> {
     let players_path = data_base.join(&manifest.players_file);
-    info!("[competitions] loading players for '{}' from {:?}", manifest.id, players_path);
+    info!(
+        "[competitions] loading players for '{}' from {:?}",
+        manifest.id, players_path
+    );
     let json = std::fs::read_to_string(&players_path).map_err(|e| {
         format!(
             "Failed to read players file '{}' for '{}': {}",
             manifest.players_file, manifest.id, e
         )
     })?;
-    let mut data: PlayerDataFile = serde_json::from_str(&json)
-        .map_err(|e| format!("Failed to parse players data: {}", e))?;
+    let mut data: PlayerDataFile =
+        serde_json::from_str(&json).map_err(|e| format!("Failed to parse players data: {}", e))?;
 
     // Normalize: if natural_position is unknown, fall back to position
     for player in &mut data.players {
@@ -136,18 +139,24 @@ pub fn load_players(
 /// Load staff data for a competition from its manifest's `staff_file` path.
 /// Returns an empty vec if no staff_file is configured and no conventional
 /// `staffs/<competition>_staffs.json` shard exists.
-pub fn load_staff(
-    data_base: &Path,
-    manifest: &CompetitionManifest,
-) -> Result<Vec<Staff>, String> {
+pub fn load_staff(data_base: &Path, manifest: &CompetitionManifest) -> Result<Vec<Staff>, String> {
     let staff_path = match resolve_staff_file(data_base, manifest) {
         Some(path) => path,
         None => return Ok(Vec::new()),
     };
-    eprintln!("[competitions] loading staff for '{}' from {:?}", manifest.id, staff_path);
-    info!("[competitions] loading staff for '{}' from {:?}", manifest.id, staff_path);
+    eprintln!(
+        "[competitions] loading staff for '{}' from {:?}",
+        manifest.id, staff_path
+    );
+    info!(
+        "[competitions] loading staff for '{}' from {:?}",
+        manifest.id, staff_path
+    );
     let json = std::fs::read_to_string(&staff_path).map_err(|e| {
-        eprintln!("[competitions] FAILED to read staff file {:?}: {}", staff_path, e);
+        eprintln!(
+            "[competitions] FAILED to read staff file {:?}: {}",
+            staff_path, e
+        );
         format!(
             "Failed to read staff file '{}' for '{}': {}",
             staff_path.display(),
@@ -155,8 +164,8 @@ pub fn load_staff(
             e
         )
     })?;
-    let data: StaffDataFile = serde_json::from_str(&json)
-        .map_err(|e| format!("Failed to parse staff data: {}", e))?;
+    let data: StaffDataFile =
+        serde_json::from_str(&json).map_err(|e| format!("Failed to parse staff data: {}", e))?;
     Ok(data.staff)
 }
 
@@ -184,8 +193,8 @@ pub fn load_staff_free_agents(data_base: &Path) -> Result<Vec<Staff>, String> {
     let staff_path = data_base.join("staffs").join("free_agents.json");
     let json = std::fs::read_to_string(&staff_path)
         .map_err(|e| format!("Failed to read staff file: {}", e))?;
-    let data: StaffDataFile = serde_json::from_str(&json)
-        .map_err(|e| format!("Failed to parse staff data: {}", e))?;
+    let data: StaffDataFile =
+        serde_json::from_str(&json).map_err(|e| format!("Failed to parse staff data: {}", e))?;
     Ok(data.staff)
 }
 
@@ -216,14 +225,20 @@ fn competition_summary(
     let teams = match load_teams(data_base, &manifest) {
         Ok(t) => t,
         Err(err) => {
-            info!("[competitions] competition_summary: failed to load teams for '{}': {}", manifest.id, err);
+            info!(
+                "[competitions] competition_summary: failed to load teams for '{}': {}",
+                manifest.id, err
+            );
             return None;
         }
     };
     let player_count_by_team = match load_player_count_by_team(data_base, &manifest) {
         Ok(counts) => counts,
         Err(err) => {
-            info!("[competitions] competition_summary: failed to load player counts for '{}': {}", manifest.id, err);
+            info!(
+                "[competitions] competition_summary: failed to load player counts for '{}': {}",
+                manifest.id, err
+            );
             HashMap::new()
         }
     };
@@ -272,11 +287,17 @@ fn competition_summary(
 /// This is read-only and does not require game state.
 pub fn build_league_selection(data_base: &Path) -> LeagueSelectionData {
     let competitions_base = data_base.join("competitions");
-    info!("[LeagueDebug] data_base={:?}, competitions_base={:?}", data_base, competitions_base);
+    info!(
+        "[LeagueDebug] data_base={:?}, competitions_base={:?}",
+        data_base, competitions_base
+    );
     let manifests = scan_competitions(&competitions_base);
 
     for m in &manifests {
-        info!("[LeagueDebug] manifest: id={}, name={}, legacy={}, tier={:?}", m.id, m.name, m.legacy, m.tier);
+        info!(
+            "[LeagueDebug] manifest: id={}, name={}, legacy={}, tier={:?}",
+            m.id, m.name, m.legacy, m.tier
+        );
     }
 
     let filtered_manifests: Vec<_> = manifests
@@ -295,7 +316,6 @@ pub fn build_league_selection(data_base: &Path) -> LeagueSelectionData {
 
     LeagueSelectionData { competitions }
 }
-
 
 /// Extract competition ID from a scoped team ID like `"lec-g2"` → `"lec"`.
 ///
@@ -337,7 +357,11 @@ pub fn competition_id_from_team_id_unchecked(team_id: &str) -> Option<&str> {
     }
     let dash_pos = team_id.find('-')?;
     let prefix = &team_id[..dash_pos];
-    if prefix.is_empty() { None } else { Some(prefix) }
+    if prefix.is_empty() {
+        None
+    } else {
+        Some(prefix)
+    }
 }
 
 /// Backwards-compatible dispatcher. Prefer `competition_id_from_team_id_known`
@@ -404,7 +428,9 @@ pub fn sanitize_competition_references(game: &mut Game, known_competition_ids: &
             .iter()
             .find(|t| t.manager_id.as_deref() == Some(&game.manager.id))
         {
-            if let Some(cid) = competition_id_from_team_id_known(&manager_team.id, known_competition_ids) {
+            if let Some(cid) =
+                competition_id_from_team_id_known(&manager_team.id, known_competition_ids)
+            {
                 info!(
                     "[competitions] derived user_competition_id '{}' from manager team '{}'",
                     cid, manager_team.id
@@ -504,10 +530,7 @@ mod tests {
 
     #[test]
     fn competition_id_from_team_id_extracts_prefix() {
-        assert_eq!(
-            competition_id_from_team_id("lec-g2", None),
-            Some("lec")
-        );
+        assert_eq!(competition_id_from_team_id("lec-g2", None), Some("lec"));
         assert_eq!(
             competition_id_from_team_id("lec-team-name", None),
             Some("lec")
@@ -529,10 +552,7 @@ mod tests {
             Some("emea-masters")
         );
         // Unknown prefix returns None when known ids are supplied.
-        assert_eq!(
-            competition_id_from_team_id("lcs-g2", Some(&known)),
-            None
-        );
+        assert_eq!(competition_id_from_team_id("lcs-g2", Some(&known)), None);
     }
 
     #[test]
@@ -703,11 +723,7 @@ mod tests {
         assert_eq!(game.user_competition_id, Some("lec".to_string()));
         let lec_g2 = game.teams.iter().find(|t| t.id == "lec-g2").unwrap();
         assert_eq!(lec_g2.competition_id, None);
-        let legacy_g2 = game
-            .teams
-            .iter()
-            .find(|t| t.id == "legacy-g2")
-            .unwrap();
+        let legacy_g2 = game.teams.iter().find(|t| t.id == "legacy-g2").unwrap();
         assert_eq!(legacy_g2.competition_id, None);
     }
 
@@ -746,17 +762,11 @@ mod tests {
 
         assert!(!changed);
         assert_eq!(game.user_competition_id, Some("lec".to_string()));
-        assert_eq!(
-            game.teams[0].competition_id,
-            Some("lec".to_string())
-        );
+        assert_eq!(game.teams[0].competition_id, Some("lec".to_string()));
     }
 
     #[test]
     fn competition_id_from_team_id_known_returns_none_for_empty_known_list() {
-        assert_eq!(
-            competition_id_from_team_id_known("lec-g2", &[]),
-            None
-        );
+        assert_eq!(competition_id_from_team_id_known("lec-g2", &[]), None);
     }
 }

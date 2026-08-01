@@ -54,5 +54,3 @@ pub fn sim_live_skip_to_end(
 ) -> Result<SimLiveSkipToEndResponse, String> {
     skip_to_end(&state, request)
 }
-
-

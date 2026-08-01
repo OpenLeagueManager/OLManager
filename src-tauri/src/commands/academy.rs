@@ -1,12 +1,12 @@
 use chrono::Utc;
-use olm_core::domain::team::{Team, TeamKind};
 use log::info;
 use olm_core::academy::{
     academy_candidate_catalog, academy_erl_catalog, eligible_academy_acquisition_options,
     validate_academy_acquisition, AcademyAcquisitionOption,
 };
-use olm_core::game::Game;
+use olm_core::domain::team::{Team, TeamKind};
 use olm_core::finances::{record_transaction, BudgetImpact, FinanceTransactionInput};
+use olm_core::game::Game;
 use olm_core::state::StateManager;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -86,7 +86,8 @@ pub fn promote_academy_player(
         .clone()
         .ok_or("No team assigned".to_string())?;
 
-    let academy_team_id = olm_core::academy::resolve_manager_academy_team_id(&game, &parent_team_id)?;
+    let academy_team_id =
+        olm_core::academy::resolve_manager_academy_team_id(&game, &parent_team_id)?;
 
     let (moved_player_id, moved_player_name) = {
         let player = game
@@ -136,7 +137,8 @@ pub fn demote_main_player_to_academy(
         .clone()
         .ok_or("No team assigned".to_string())?;
 
-    let academy_team_id = olm_core::academy::resolve_manager_academy_team_id(&game, &parent_team_id)?;
+    let academy_team_id =
+        olm_core::academy::resolve_manager_academy_team_id(&game, &parent_team_id)?;
 
     let (moved_player_id, moved_player_name) = {
         let player = game
@@ -265,7 +267,11 @@ pub(crate) fn acquire_academy_team_in_game(
     let academy_id = option.source_team_id.clone();
 
     let created_at = game.clock.current_date.with_timezone(&Utc).to_rfc3339();
-    let metadata = olm_core::academy::academy_metadata(&option, created_at.clone(), request.custom_logo_url.clone());
+    let metadata = olm_core::academy::academy_metadata(
+        &option,
+        created_at.clone(),
+        request.custom_logo_url.clone(),
+    );
 
     let existing_academy_index = game
         .teams
@@ -304,9 +310,13 @@ pub(crate) fn acquire_academy_team_in_game(
                 affects_season_totals: true,
                 source: "academy".to_string(),
                 source_id: Some(academy_id.clone()),
-                correlation_id: Some(format!("academy-acquisition:{}:{}", request.parent_team_id, academy_id)),
+                correlation_id: Some(format!(
+                    "academy-acquisition:{}:{}",
+                    request.parent_team_id, academy_id
+                )),
             },
-        ).map_err(|err| format!("Failed to record academy acquisition: {err:?}"))?;
+        )
+        .map_err(|err| format!("Failed to record academy acquisition: {err:?}"))?;
         parent.academy_team_id = Some(academy_id.clone());
     }
 
@@ -407,11 +417,12 @@ mod tests {
         AcquireAcademyTeamRequest,
     };
     use chrono::{TimeZone, Utc};
+    use olm_core::clock::GameClock;
     use olm_core::domain::manager::Manager;
     use olm_core::domain::team::{
-        AcademyLifecycle, AcademyMetadata, ErlAssignment, ErlAssignmentRule, FinancialTransactionKind, Team, TeamKind,
+        AcademyLifecycle, AcademyMetadata, ErlAssignment, ErlAssignmentRule,
+        FinancialTransactionKind, Team, TeamKind,
     };
-    use olm_core::clock::GameClock;
     use olm_core::game::Game;
 
     fn source_id_by_name(game: &Game, parent_team_id: &str, team_name: &str) -> String {
@@ -723,4 +734,3 @@ mod tests {
         );
     }
 }
-

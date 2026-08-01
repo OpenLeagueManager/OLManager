@@ -42,17 +42,19 @@ pub fn export_bug_report(
     info!("[cmd] export_bug_report: creating {}", zip_path.display());
 
     // Try to also include Tauri log files (last 50KB of last 3 logs)
-    let logs_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map(|p| p.join("logs"));
+    let logs_dir = app_handle.path().app_data_dir().map(|p| p.join("logs"));
     let log_contents = match &logs_dir {
         Ok(dir) if dir.exists() => {
             let mut combined = String::new();
             if let Ok(entries) = std::fs::read_dir(dir) {
                 let mut log_files: Vec<_> = entries
                     .filter_map(|e| e.ok())
-                    .filter(|e| e.path().extension().map(|ext| ext == "log").unwrap_or(false))
+                    .filter(|e| {
+                        e.path()
+                            .extension()
+                            .map(|ext| ext == "log")
+                            .unwrap_or(false)
+                    })
                     .collect();
                 log_files.sort_by_key(|e| e.path());
                 for entry in log_files.iter().rev().take(3) {
@@ -71,7 +73,8 @@ pub fn export_bug_report(
         _ => String::new(),
     };
 
-    let file = std::fs::File::create(&zip_path).map_err(|e| format!("Failed to create zip: {}", e))?;
+    let file =
+        std::fs::File::create(&zip_path).map_err(|e| format!("Failed to create zip: {}", e))?;
     let mut zip = ZipWriter::new(file);
 
     let options = FileOptions::<()>::default()
@@ -98,7 +101,8 @@ pub fn export_bug_report(
             .map_err(|e| format!("Failed to write logs: {}", e))?;
     }
 
-    zip.finish().map_err(|e| format!("Failed to finalize zip: {}", e))?;
+    zip.finish()
+        .map_err(|e| format!("Failed to finalize zip: {}", e))?;
 
     info!("[cmd] export_bug_report: done at {}", zip_path.display());
 

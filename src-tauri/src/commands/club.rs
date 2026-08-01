@@ -121,9 +121,9 @@ fn expand_main_facility_hub_internal(state: &StateManager) -> Result<Game, Strin
 mod tests {
     use super::upgrade_facility_internal;
     use chrono::{TimeZone, Utc};
+    use olm_core::clock::GameClock;
     use olm_core::domain::manager::Manager;
     use olm_core::domain::team::Team;
-    use olm_core::clock::GameClock;
     use olm_core::game::Game;
     use olm_core::state::StateManager;
 
@@ -181,4 +181,3 @@ mod tests {
         assert_eq!(stored_team.finance, 750_000);
     }
 }
-

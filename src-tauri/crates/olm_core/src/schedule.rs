@@ -1,6 +1,6 @@
-use chrono::{DateTime, Duration, TimeZone, Utc};
 use crate::domain::league::{Fixture, FixtureStatus, League, MatchType};
 use crate::generator::definitions::CompetitionManifest;
+use chrono::{DateTime, Duration, TimeZone, Utc};
 use uuid::Uuid;
 
 fn build_fixture(
@@ -198,7 +198,13 @@ pub fn generate_single_round_league_with_offsets_and_bo(
 ) -> League {
     let league_id = Uuid::new_v4().to_string();
     generate_single_round_league_with_offsets_and_bo_with_id(
-        &league_id, name, season, team_ids, start_date, round_day_offsets, best_of,
+        &league_id,
+        name,
+        season,
+        team_ids,
+        start_date,
+        round_day_offsets,
+        best_of,
     )
 }
 
@@ -218,7 +224,13 @@ pub fn generate_single_round_league_with_offsets_and_bo_with_id(
     let real_n = team_ids.len();
     assert!(real_n >= 2, "Need at least 2 teams for a league");
 
-    let mut league = League::new(league_id.to_string(), name.to_string(), season, team_ids, None);
+    let mut league = League::new(
+        league_id.to_string(),
+        name.to_string(),
+        season,
+        team_ids,
+        None,
+    );
 
     // Circle method requires an even number of slots. For an odd team count we
     // add a sentinel "bye" slot: whichever real team is paired with it sits out
@@ -317,21 +329,19 @@ pub fn generate_schedule_from_config(
         .unwrap();
 
     let mut league = match config.format.as_str() {
-        "single_round_robin" => {
-            generate_single_round_league_with_offsets_and_bo_with_id(
-                &manifest.id,
-                &manifest.name,
-                year,
-                team_ids,
-                season_start,
-                if split.superweek_offsets.is_empty() {
-                    None
-                } else {
-                    Some(&split.superweek_offsets)
-                },
-                split.best_of as u8,
-            )
-        }
+        "single_round_robin" => generate_single_round_league_with_offsets_and_bo_with_id(
+            &manifest.id,
+            &manifest.name,
+            year,
+            team_ids,
+            season_start,
+            if split.superweek_offsets.is_empty() {
+                None
+            } else {
+                Some(&split.superweek_offsets)
+            },
+            split.best_of as u8,
+        ),
         "double_round_robin" => {
             let mut l = generate_single_round_league_with_offsets_and_bo_with_id(
                 &manifest.id,
@@ -346,7 +356,11 @@ pub fn generate_schedule_from_config(
                 },
                 split.best_of as u8,
             );
-            let last_offset = split.superweek_offsets.last().copied().unwrap_or(7 * (team_ids.len() as i64 - 1));
+            let last_offset = split
+                .superweek_offsets
+                .last()
+                .copied()
+                .unwrap_or(7 * (team_ids.len() as i64 - 1));
             let return_start = season_start + Duration::days(last_offset + 7);
             let return_league = generate_single_round_league_with_offsets_and_bo(
                 &format!("{} (Return)", manifest.name),
@@ -368,9 +382,8 @@ pub fn generate_schedule_from_config(
                 };
                 l.fixtures.push(reversed);
             }
-            l.fixtures.sort_by(|a, b| {
-                a.date.cmp(&b.date).then(a.matchday.cmp(&b.matchday))
-            });
+            l.fixtures
+                .sort_by(|a, b| a.date.cmp(&b.date).then(a.matchday.cmp(&b.matchday)));
             l
         }
         _ => {
@@ -533,6 +546,4 @@ mod tests {
         assert_eq!(friendlies[0].date, "2026-07-11");
         assert_eq!(friendlies[2].date, "2026-07-25");
     }
-
 }
-

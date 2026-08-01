@@ -1468,4 +1468,3 @@ fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
     let dy = a.1 - b.1;
     (dx * dx + dy * dy).sqrt()
 }
-

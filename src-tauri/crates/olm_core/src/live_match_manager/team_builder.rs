@@ -1,8 +1,8 @@
-use std::collections::HashSet;
-use crate::game::Game;
-use crate::potential::calculate_lol_ovr;
 use crate::domain::player::LolRole as DomainLolRole;
 use crate::engine::{DraftStrategy, LolRole, PlayerData, TeamData};
+use crate::game::Game;
+use crate::potential::calculate_lol_ovr;
+use std::collections::HashSet;
 
 // ---------------------------------------------------------------------------
 // Domain → Engine conversion (LoL: 5 titulares + banca)
@@ -256,12 +256,12 @@ pub fn auto_select_team_roles(
 mod tests {
     use super::build_team_with_bench;
     use crate::clock::GameClock;
-    use crate::game::Game;
-    use chrono::{TimeZone, Utc};
     use crate::domain::manager::Manager;
     use crate::domain::player::{LolRole, Player, PlayerAttributes};
     use crate::domain::team::Team;
     use crate::engine::LolRole as EngineLolRole;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
 
     fn attrs(value: u8) -> PlayerAttributes {
         PlayerAttributes {
@@ -392,5 +392,3 @@ mod tests {
         assert!(!bench.iter().any(|player| player.id == "oscar"));
     }
 }
-
-

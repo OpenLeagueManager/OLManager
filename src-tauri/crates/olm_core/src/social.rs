@@ -4,7 +4,7 @@ use crate::domain::team::Team;
 use crate::engine::report::{MatchReport, PlayerMatchStats};
 
 use crate::game::Game;
-use crate::social_data::{load_match_texts, MatchTexts};
+use crate::social_data::{MatchTexts, load_match_texts};
 use crate::social_registry::{default_social_accounts, social_author};
 use crate::social_templates::{
     MatchTemplateContext, MatchTemplateSlot, SelectedMatchTemplate, default_social_templates,
@@ -97,7 +97,11 @@ fn sentiment_from_tags(tags: &[String], is_winner: bool) -> SocialSentiment {
     let tag_set: std::collections::HashSet<String> =
         tags.iter().map(|t| t.to_lowercase()).collect();
     if tag_set.contains("stomp") {
-        return if is_winner { SocialSentiment::Hype } else { SocialSentiment::Meltdown };
+        return if is_winner {
+            SocialSentiment::Hype
+        } else {
+            SocialSentiment::Meltdown
+        };
     }
     if tag_set.contains("close") {
         return SocialSentiment::Worried;
@@ -106,9 +110,17 @@ fn sentiment_from_tags(tags: &[String], is_winner: bool) -> SocialSentiment {
         return SocialSentiment::Angry;
     }
     if tag_set.contains("rivalry") {
-        return if is_winner { SocialSentiment::Hype } else { SocialSentiment::Worried };
+        return if is_winner {
+            SocialSentiment::Hype
+        } else {
+            SocialSentiment::Worried
+        };
     }
-    if is_winner { SocialSentiment::Calm } else { SocialSentiment::Worried }
+    if is_winner {
+        SocialSentiment::Calm
+    } else {
+        SocialSentiment::Worried
+    }
 }
 
 fn pick_team_fan_account<'a>(
@@ -209,7 +221,11 @@ fn bouzys_vs_fnatic_text(
     data_base: Option<&Path>,
 ) -> String {
     if let Some(texts) = cached_match_texts(data_base) {
-        if let Some(options) = texts.bouzys_vs_fnatic.get(language).or_else(|| texts.bouzys_vs_fnatic.get("en")) {
+        if let Some(options) = texts
+            .bouzys_vs_fnatic
+            .get(language)
+            .or_else(|| texts.bouzys_vs_fnatic.get("en"))
+        {
             if !options.is_empty() {
                 let idx = variant_index(seed, options.len());
                 return options[idx].replace("{winner}", winner_short_name);
@@ -277,7 +293,11 @@ fn team_loser_post_text(
                     .replace("{score}", score);
             }
         }
-        if let Some(options) = texts.team_loser.get(language).or_else(|| texts.team_loser.get("en")) {
+        if let Some(options) = texts
+            .team_loser
+            .get(language)
+            .or_else(|| texts.team_loser.get("en"))
+        {
             if !options.is_empty() {
                 let idx = variant_index(seed, options.len());
                 return options[idx]
@@ -669,7 +689,12 @@ pub fn generate_match_social_posts(
             },
             "@Bouzyslol".to_string(),
             SocialAuthorType::Fan,
-            bouzys_vs_fnatic_text(&language, &winner.short_name, &format!("{}-bouzys", seed), data_base),
+            bouzys_vs_fnatic_text(
+                &language,
+                &winner.short_name,
+                &format!("{}-bouzys", seed),
+                data_base,
+            ),
             SocialPostCategory::FanOpinion,
             sentiment_from_tags(&[], true),
         )
@@ -963,7 +988,12 @@ pub fn relocalize_social_posts(game: &mut Game, locale: &str, data_base: Option<
             } else {
                 post.author_name = "X Bouzys".to_string();
             }
-            bouzys_vs_fnatic_text(&language, &winner.short_name, &format!("{}-bouzys", seed), data_base)
+            bouzys_vs_fnatic_text(
+                &language,
+                &winner.short_name,
+                &format!("{}-bouzys", seed),
+                data_base,
+            )
         } else if post.id.contains("_player_") {
             select_match_template_for_language(
                 &templates,
@@ -1055,5 +1085,3 @@ fn manager_language(nationality: &str) -> &str {
     }
     "en"
 }
-
-

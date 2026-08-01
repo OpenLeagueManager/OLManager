@@ -1,7 +1,7 @@
 use crate::domain::message::*;
 use crate::domain::team::{
-    main_facility_module_catalog, Facilities, FinancialTransaction, FinancialTransactionKind,
-    MainFacilityModuleKind, Sponsorship, SponsorshipBonusCriterion, Team,
+    Facilities, FinancialTransaction, FinancialTransactionKind, MainFacilityModuleKind,
+    Sponsorship, SponsorshipBonusCriterion, Team, main_facility_module_catalog,
 };
 use crate::game::Game;
 use chrono::{Datelike, NaiveDate};

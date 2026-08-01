@@ -159,5 +159,3 @@ pub(super) fn get_team_match_history_internal(
         .map(|record| to_team_history_dto(state, &record))
         .collect())
 }
-
-

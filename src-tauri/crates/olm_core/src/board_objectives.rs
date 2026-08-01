@@ -1,10 +1,10 @@
-use crate::end_of_season;
-use crate::game::{BoardObjective, Game, ObjectiveType};
-use crate::player_rating::natural_ovr;
 use crate::domain::league::FixtureStatus;
 use crate::domain::message::*;
 use crate::domain::player::Player;
 use crate::domain::team::Team;
+use crate::end_of_season;
+use crate::game::{BoardObjective, Game, ObjectiveType};
+use crate::player_rating::natural_ovr;
 use std::collections::HashMap;
 
 struct ObjectiveTargets {
@@ -345,18 +345,20 @@ pub fn evaluate_objective_result(game: &Game) -> ObjectiveEvaluation {
 #[cfg(test)]
 mod tests {
     use super::{
-        evaluate_objectives, expected_league_rank, generate_objectives, objective_profile_for_rank,
-        update_objective_progress, ObjectiveProfile,
+        ObjectiveProfile, evaluate_objectives, expected_league_rank, generate_objectives,
+        objective_profile_for_rank, update_objective_progress,
     };
     use crate::clock::GameClock;
-    use crate::game::{BoardObjective, Game, ObjectiveType};
-    use chrono::{TimeZone, Utc};
-    use crate::domain::league::{Fixture, FixtureStatus, League, MatchResult, MatchType, StandingEntry};
+    use crate::domain::league::{
+        Fixture, FixtureStatus, League, MatchResult, MatchType, StandingEntry,
+    };
     use crate::domain::manager::Manager;
     use crate::domain::message::{InboxMessage, MessageCategory, MessagePriority};
     use crate::domain::player::{Player, PlayerAttributes};
     use crate::domain::stats::LolRole;
     use crate::domain::team::Team;
+    use crate::game::{BoardObjective, Game, ObjectiveType};
+    use chrono::{TimeZone, Utc};
 
     fn make_team(id: &str, name: &str, reputation: u32) -> Team {
         let mut team = Team::new(
@@ -1029,4 +1031,3 @@ mod tests {
         assert_eq!(evaluate_objectives(&game), -15);
     }
 }
-

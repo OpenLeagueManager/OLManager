@@ -6,8 +6,7 @@ use std::sync::OnceLock;
 use serde::Deserialize;
 
 use crate::domain::message::{
-    ActionOption, ActionType, InboxMessage, MessageAction, MessageCategory,
-    MessagePriority,
+    ActionOption, ActionType, InboxMessage, MessageAction, MessageCategory, MessagePriority,
 };
 
 // ─── Sender data structures ───
@@ -42,8 +41,12 @@ fn load_senders(senders_dir: &Path) -> HashMap<String, MessageTemplateSender> {
         if path.extension().and_then(|s| s.to_str()) != Some("json") {
             continue;
         }
-        let Ok(content) = fs::read_to_string(&path) else { continue };
-        let Ok(sender) = serde_json::from_str::<MessageTemplateSender>(&content) else { continue };
+        let Ok(content) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(sender) = serde_json::from_str::<MessageTemplateSender>(&content) else {
+            continue;
+        };
         if let Some(id) = &sender.id {
             senders.insert(id.clone(), sender);
         }
@@ -142,8 +145,8 @@ impl TemplateStore {
             if path.extension().and_then(|s| s.to_str()) != Some("json") {
                 continue;
             }
-            let content = fs::read_to_string(&path)
-                .map_err(|e| format!("Failed to read {path:?}: {e}"))?;
+            let content =
+                fs::read_to_string(&path).map_err(|e| format!("Failed to read {path:?}: {e}"))?;
             let template: MessageTemplate = serde_json::from_str(&content)
                 .map_err(|e| format!("Failed to parse {path:?}: {e}"))?;
             by_trigger
@@ -153,19 +156,22 @@ impl TemplateStore {
         }
 
         // Log loaded templates
-        eprintln!("[template_store] loaded triggers: {:?}", by_trigger.keys().collect::<Vec<_>>());
+        eprintln!(
+            "[template_store] loaded triggers: {:?}",
+            by_trigger.keys().collect::<Vec<_>>()
+        );
 
         // Also scan subdirectories for nested JSONs
-        let dir_entries = fs::read_dir(messages_dir)
-            .map_err(|e| format!("Failed to read messages dir: {e}"))?;
+        let dir_entries =
+            fs::read_dir(messages_dir).map_err(|e| format!("Failed to read messages dir: {e}"))?;
         for entry in dir_entries {
             let entry = entry.map_err(|e| format!("Dir entry error: {e}"))?;
             let subdir = entry.path();
             if !subdir.is_dir() {
                 continue;
             }
-            let sub_entries = fs::read_dir(&subdir)
-                .map_err(|e| format!("Failed to read {subdir:?}: {e}"))?;
+            let sub_entries =
+                fs::read_dir(&subdir).map_err(|e| format!("Failed to read {subdir:?}: {e}"))?;
             for sub_entry in sub_entries {
                 let sub_entry = sub_entry.map_err(|e| format!("Entry error: {e}"))?;
                 let path = sub_entry.path();
@@ -185,7 +191,10 @@ impl TemplateStore {
 
         // Log loaded templates
         for (trigger, templates) in &by_trigger {
-            eprintln!("[template_store] trigger={trigger}: {} template(s)", templates.len());
+            eprintln!(
+                "[template_store] trigger={trigger}: {} template(s)",
+                templates.len()
+            );
         }
 
         Ok(Self { by_trigger })
@@ -227,7 +236,13 @@ impl TemplateStore {
             .collect();
 
         // Resolve translated text or fall back to default (English)
-        let subject = resolve_text(&tpl.subject, &tpl.translations, lang, "subject", &i18n_params);
+        let subject = resolve_text(
+            &tpl.subject,
+            &tpl.translations,
+            lang,
+            "subject",
+            &i18n_params,
+        );
         let body = resolve_text(&tpl.body, &tpl.translations, lang, "body", &i18n_params);
 
         let category = parse_category(&tpl.category);

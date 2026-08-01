@@ -110,4 +110,3 @@ impl LiveMatchState {
         self.into_report()
     }
 }
-

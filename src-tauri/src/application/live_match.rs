@@ -347,7 +347,13 @@ pub fn finish_live_match(
         state.append_stats_state(capture);
     }
 
-    olm_core::social::generate_match_social_posts(&mut game, fixture_index, &report, locale, data_base);
+    olm_core::social::generate_match_social_posts(
+        &mut game,
+        fixture_index,
+        &report,
+        locale,
+        data_base,
+    );
 
     let round_summary = build_round_summary_dto(&game, round_matchday, &round_previous_standings);
 
@@ -380,9 +386,12 @@ pub fn start_live_match(
     // For the user team, repair_team is a no-op (skips non-schedulable teams).
     // For the AI opponent, repair fills missing roles, reconciles lineups, etc.
     let match_team_ids: Vec<String> = {
-        let league = game.active_league()
+        let league = game
+            .active_league()
             .ok_or("No active league for start_live_match")?;
-        let fixture = league.fixtures.get(fixture_index)
+        let fixture = league
+            .fixtures
+            .get(fixture_index)
             .ok_or_else(|| format!("Fixture index {fixture_index} out of range"))?;
         vec![fixture.home_team_id.clone(), fixture.away_team_id.clone()]
     };
@@ -394,9 +403,7 @@ pub fn start_live_match(
                 roster_stability::RosterStabilityReason::PreMatch,
             )
             .map_err(|e| {
-                format!(
-                    "Team {team_id} roster is invalid and could not be repaired: {e}"
-                )
+                format!("Team {team_id} roster is invalid and could not be repaired: {e}")
             })?;
         }
     }
@@ -491,7 +498,3 @@ pub fn get_match_snapshot(state: &StateManager) -> Result<olm_core::engine::Matc
 
     Ok(snapshot)
 }
-
-
-
-

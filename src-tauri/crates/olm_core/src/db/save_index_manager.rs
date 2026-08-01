@@ -52,4 +52,3 @@ impl SaveIndexManager {
         write_index(&self.index_path, &self.index)
     }
 }
-

@@ -1,5 +1,5 @@
-use crate::narrative::{NarrativeSelector, load_default_content_pack};
 use crate::domain::message::*;
+use crate::narrative::{NarrativeSelector, load_default_content_pack};
 use rand::RngExt;
 use std::collections::HashMap;
 
@@ -56,7 +56,10 @@ pub(crate) fn low_morale_message(
     }
 
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "low_morale", msg_id, date, "en",
+        "low_morale",
+        msg_id,
+        date,
+        "en",
         vec![("player", player_name), ("morale", &morale.to_string())],
     ) {
         return msg;
@@ -147,7 +150,10 @@ pub(crate) fn bench_complaint_message(
     }
 
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "bench_complaint", msg_id, date, "en",
+        "bench_complaint",
+        msg_id,
+        date,
+        "en",
         vec![("player", player_name)],
     ) {
         return msg;
@@ -238,7 +244,10 @@ pub(crate) fn happy_player_message(
     }
 
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "happy_player", msg_id, date, "en",
+        "happy_player",
+        msg_id,
+        date,
+        "en",
         vec![("player", player_name), ("morale", "100")],
     ) {
         return msg;
@@ -331,8 +340,14 @@ pub(crate) fn contract_concern_message(
     }
 
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "contract_concern", msg_id, date, "en",
-        vec![("player", player_name), ("days", &days_remaining.to_string())],
+        "contract_concern",
+        msg_id,
+        date,
+        "en",
+        vec![
+            ("player", player_name),
+            ("days", &days_remaining.to_string()),
+        ],
     ) {
         return msg;
     }
@@ -657,4 +672,3 @@ fn conversation_copy_and_options(
         _ => None,
     }
 }
-

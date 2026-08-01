@@ -184,4 +184,3 @@ fn default_skip_to_end_speed() -> f64 {
 fn default_skip_to_end_max_ticks() -> u64 {
     default_run_to_completion_max_ticks()
 }
-

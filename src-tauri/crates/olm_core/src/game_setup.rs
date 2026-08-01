@@ -1,9 +1,9 @@
-use chrono::{Datelike, NaiveDate};
 use crate::domain::message::{InboxMessage, MessageCategory, MessageContext, MessagePriority};
 use crate::domain::player::{Player, PlayerAttributes};
 use crate::domain::team::{
     AcademyLifecycle, AcademyMetadata, ErlAssignment, ErlAssignmentRule, Team, TeamKind,
 };
+use chrono::{Datelike, NaiveDate};
 use log::{info, warn};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
@@ -187,8 +187,17 @@ pub fn build_lol_stats_from_seed(seed: &DraftPlayerSeed) -> [u8; 9] {
 }
 
 pub fn build_attributes_from_seed(seed: &DraftPlayerSeed) -> PlayerAttributes {
-    let [mechanics, laning, teamfighting, macro_play, consistency, shotcalling, champion_pool, discipline, mental_resilience] =
-        build_lol_stats_from_seed(seed);
+    let [
+        mechanics,
+        laning,
+        teamfighting,
+        macro_play,
+        consistency,
+        shotcalling,
+        champion_pool,
+        discipline,
+        mental_resilience,
+    ] = build_lol_stats_from_seed(seed);
 
     PlayerAttributes {
         mechanics,
@@ -266,8 +275,15 @@ pub fn build_free_agent_player(seed: &DraftPlayerSeed, index: usize) -> Option<P
 pub fn load_draft_seed_root() -> DraftSeedRoot {
     // Runtime read from assets/draft/players.json for world editor compatibility.
     // Returns empty if file doesn't exist — Flow C provides players from modular data.
-    let Some(content) = RESOURCE_DATA_DIR.get()
-        .map(|dir| dir.parent().unwrap_or(dir).join("assets").join("draft").join("players.json"))
+    let Some(content) = RESOURCE_DATA_DIR
+        .get()
+        .map(|dir| {
+            dir.parent()
+                .unwrap_or(dir)
+                .join("assets")
+                .join("draft")
+                .join("players.json")
+        })
         .filter(|p| p.exists())
         .or_else(|| {
             std::env::current_dir().ok().and_then(|cwd| {
@@ -275,13 +291,17 @@ pub fn load_draft_seed_root() -> DraftSeedRoot {
                 path.push("assets");
                 path.push("draft");
                 path.push("players.json");
-                if path.exists() { return Some(path); }
+                if path.exists() {
+                    return Some(path);
+                }
                 path = cwd;
                 path.push("..");
                 path.push("assets");
                 path.push("draft");
                 path.push("players.json");
-                if path.exists() { return Some(path); }
+                if path.exists() {
+                    return Some(path);
+                }
                 None
             })
         })
@@ -364,14 +384,26 @@ pub fn load_external_more_fa_seed() -> Option<DraftSeedRoot> {
 pub fn load_free_agent_players() -> &'static Vec<Player> {
     static FREE_AGENTS: OnceLock<Vec<Player>> = OnceLock::new();
     FREE_AGENTS.get_or_init(|| {
-        let resource = RESOURCE_DATA_DIR.get()
+        let resource = RESOURCE_DATA_DIR
+            .get()
             .map(|p| p.join("players").join("free_agents.json"));
         let cwd = std::env::current_dir().ok();
         let candidates = [
             resource,
-            cwd.as_ref().map(|p| p.join("data").join("players").join("free_agents.json")),
-            cwd.as_ref().map(|p| p.join("..").join("data").join("players").join("free_agents.json")),
-            cwd.as_ref().map(|p| p.join("src-tauri").join("data").join("players").join("free_agents.json")),
+            cwd.as_ref()
+                .map(|p| p.join("data").join("players").join("free_agents.json")),
+            cwd.as_ref().map(|p| {
+                p.join("..")
+                    .join("data")
+                    .join("players")
+                    .join("free_agents.json")
+            }),
+            cwd.as_ref().map(|p| {
+                p.join("src-tauri")
+                    .join("data")
+                    .join("players")
+                    .join("free_agents.json")
+            }),
         ];
 
         for path in candidates.iter().flatten() {
@@ -857,8 +889,8 @@ pub fn ensure_example_academy_pool(game: &mut Game) {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_default_initial_contract_end, default_initial_contract_end_for_start_year,
-        calculate_age_on_date,
+        apply_default_initial_contract_end, calculate_age_on_date,
+        default_initial_contract_end_for_start_year,
     };
     use crate::domain::player::{Player, PlayerAttributes};
     use crate::domain::stats::LolRole;
@@ -932,4 +964,3 @@ mod tests {
         assert_eq!(calculate_age_on_date(birth_date, game_date), 25);
     }
 }
-

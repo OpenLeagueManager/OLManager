@@ -355,5 +355,3 @@ fn populate_duration_seconds(
         stats.duration_seconds = u32::from(minutes_played) * 60;
     }
 }
-
-

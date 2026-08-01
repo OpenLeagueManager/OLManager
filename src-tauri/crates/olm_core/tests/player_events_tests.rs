@@ -1,4 +1,5 @@
 use chrono::{TimeZone, Utc};
+use olm_core::clock::GameClock;
 use olm_core::domain::league::{
     Fixture, FixtureStatus, League, LeagueKind, MatchResult, MatchType, StandingEntry,
 };
@@ -10,7 +11,6 @@ use olm_core::domain::player::{
 };
 use olm_core::domain::stats::LolRole;
 use olm_core::domain::team::Team;
-use olm_core::clock::GameClock;
 use olm_core::game::Game;
 use olm_core::player_events;
 
@@ -955,11 +955,10 @@ fn repeated_identical_talk_reduces_positive_weight() {
     let fresh = make_player("fresh", "Fresh", "team1", LolRole::Adc);
 
     let mut repeated = make_player("repeated", "Repeated", "team1", LolRole::Adc);
-    repeated.morale_core.recent_treatment =
-        Some(olm_core::domain::player::RecentTreatmentMemory {
-            action_key: "morale_talk:encourage".to_string(),
-            times_recently_used: 2,
-        });
+    repeated.morale_core.recent_treatment = Some(olm_core::domain::player::RecentTreatmentMemory {
+        action_key: "morale_talk:encourage".to_string(),
+        times_recently_used: 2,
+    });
 
     let fresh_weights =
         player_events::build_response_band_weights(&fresh, "morale_talk_fresh", "encourage");

@@ -1,5 +1,5 @@
-use crate::game::Game;
 use crate::domain::team::{TrainingIntensity, TrainingSchedule};
+use crate::game::Game;
 use std::collections::HashMap;
 
 /// Check squad fitness and generate staff warning messages when players are exhausted.
@@ -267,4 +267,3 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
         game.messages.push(msg);
     }
 }
-

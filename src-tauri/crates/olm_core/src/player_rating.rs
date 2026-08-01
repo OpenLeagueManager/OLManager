@@ -86,7 +86,6 @@ fn footedness_penalty(_player: &Player, _slot_role: &LolRole) -> f64 {
     0.0
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -153,4 +152,3 @@ mod tests {
         assert!(rating > 0.0);
     }
 }
-

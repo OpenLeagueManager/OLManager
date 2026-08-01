@@ -1,5 +1,3 @@
-use crate::game::Game;
-use crate::messages;
 use crate::domain::league::{
     CompactMatchEvent, CompactMatchReport, CompactTeamMatchStats, FixtureStatus, MatchEndReason,
     MatchResult,
@@ -8,9 +6,14 @@ use crate::domain::player::{PlayerIssue, PlayerIssueCategory, PlayerPromiseKind}
 use crate::domain::stats::{
     LolRole, MatchOutcome, PlayerMatchStatsRecord, StatsState, TeamMatchStatsRecord, TeamSide,
 };
+use crate::game::Game;
+use crate::messages;
 use log::debug;
 
-fn compact_team_stats(stats: &crate::engine::TeamStats, possession_pct: u8) -> CompactTeamMatchStats {
+fn compact_team_stats(
+    stats: &crate::engine::TeamStats,
+    possession_pct: u8,
+) -> CompactTeamMatchStats {
     CompactTeamMatchStats {
         possession_pct,
         kills: stats.kills,
@@ -470,11 +473,21 @@ fn apply_lol_profile_progression(
         let kp = (ps.kills + ps.assists) as f64 / team_kills;
 
         let (exp_cs, exp_dmg, exp_vision, exp_kp, assist_good, deaths_bad) = match role {
-            Some(crate::engine::sim_background::LolRole::Top) => (6.1, 560.0, 0.45, 0.42, 4_u16, 7_u16),
-            Some(crate::engine::sim_background::LolRole::Jungle) => (5.2, 520.0, 0.65, 0.52, 5_u16, 8_u16),
-            Some(crate::engine::sim_background::LolRole::Mid) => (6.8, 660.0, 0.55, 0.50, 5_u16, 7_u16),
-            Some(crate::engine::sim_background::LolRole::Adc) => (7.8, 740.0, 0.45, 0.50, 4_u16, 7_u16),
-            Some(crate::engine::sim_background::LolRole::Support) => (2.2, 340.0, 1.20, 0.56, 8_u16, 9_u16),
+            Some(crate::engine::sim_background::LolRole::Top) => {
+                (6.1, 560.0, 0.45, 0.42, 4_u16, 7_u16)
+            }
+            Some(crate::engine::sim_background::LolRole::Jungle) => {
+                (5.2, 520.0, 0.65, 0.52, 5_u16, 8_u16)
+            }
+            Some(crate::engine::sim_background::LolRole::Mid) => {
+                (6.8, 660.0, 0.55, 0.50, 5_u16, 7_u16)
+            }
+            Some(crate::engine::sim_background::LolRole::Adc) => {
+                (7.8, 740.0, 0.45, 0.50, 4_u16, 7_u16)
+            }
+            Some(crate::engine::sim_background::LolRole::Support) => {
+                (2.2, 340.0, 1.20, 0.56, 8_u16, 9_u16)
+            }
             None => (6.0, 560.0, 0.55, 0.48, 5_u16, 8_u16),
         };
 
@@ -651,10 +664,11 @@ fn resolve_post_match_promises(
                         severity: 75,
                     });
                 } else {
-                    player.morale_core.pending_promise = Some(crate::domain::player::PlayerPromise {
-                        kind: PlayerPromiseKind::PlayingTime,
-                        matches_remaining: promise.matches_remaining - 1,
-                    });
+                    player.morale_core.pending_promise =
+                        Some(crate::domain::player::PlayerPromise {
+                            kind: PlayerPromiseKind::PlayingTime,
+                            matches_remaining: promise.matches_remaining - 1,
+                        });
                 }
             }
         }
@@ -839,6 +853,3 @@ fn deplete_match_stamina(game: &mut Game, team_id: &str, report: &crate::engine:
         }
     }
 }
-
-
-

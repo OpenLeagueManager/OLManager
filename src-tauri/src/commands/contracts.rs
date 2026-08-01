@@ -2,12 +2,12 @@ use log::info;
 use serde::Serialize;
 use tauri::State;
 
-use olm_core::domain::negotiation::NegotiationFeedback;
-use olm_core::domain::player::RenewalSessionStatus;
 use olm_core::contracts::{
     DelegatedRenewalOptions, DelegatedRenewalReport, RenewalDecision, RenewalFinancialProjection,
     RenewalOffer,
 };
+use olm_core::domain::negotiation::NegotiationFeedback;
+use olm_core::domain::player::RenewalSessionStatus;
 use olm_core::game::Game;
 use olm_core::state::StateManager;
 
@@ -162,13 +162,13 @@ mod tests {
         propose_renewal_internal,
     };
     use chrono::{TimeZone, Utc};
-    use olm_core::db::save_manager::SaveManager;
-    use olm_core::domain::manager::Manager;
-    use olm_core::domain::player::{Player, PlayerAttributes, LolRole};
-    use olm_core::domain::staff::{Staff, StaffAttributes, StaffRole};
-    use olm_core::domain::team::Team;
     use olm_core::clock::GameClock;
     use olm_core::contracts::RenewalDecision;
+    use olm_core::db::save_manager::SaveManager;
+    use olm_core::domain::manager::Manager;
+    use olm_core::domain::player::{LolRole, Player, PlayerAttributes};
+    use olm_core::domain::staff::{Staff, StaffAttributes, StaffRole};
+    use olm_core::domain::team::Team;
     use olm_core::game::Game;
     use olm_core::state::StateManager;
     use std::fs;
@@ -472,6 +472,3 @@ mod tests {
         assert!(response.projection.policy_allows);
     }
 }
-
-
-

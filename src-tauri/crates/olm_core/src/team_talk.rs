@@ -5,8 +5,10 @@
 
 use crate::game::Game;
 use crate::player_events::{
-    pick_response_band, ResponseBandWeights, ResponseOutcomeBand,
-    responses::{adjust_weight, capped_by_unresolved_issue, personality_factor, update_recent_treatment},
+    ResponseBandWeights, ResponseOutcomeBand, pick_response_band,
+    responses::{
+        adjust_weight, capped_by_unresolved_issue, personality_factor, update_recent_treatment,
+    },
 };
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -246,7 +248,11 @@ fn team_talk_delta_for_band(tone: &str, band: ResponseOutcomeBand) -> i16 {
 }
 
 /// Team-talk-specific reduction uses factor 3 (vs factor 4 in player events).
-fn team_talk_recent_reduction(delta: i16, player: &crate::domain::player::Player, action_key: &str) -> i16 {
+fn team_talk_recent_reduction(
+    delta: i16,
+    player: &crate::domain::player::Player,
+    action_key: &str,
+) -> i16 {
     let Some(memory) = player.morale_core.recent_treatment.as_ref() else {
         return delta;
     };
@@ -280,7 +286,11 @@ pub fn apply_team_talk(
         let base_morale = i16::from(player.morale);
         let weights = build_team_talk_weights(player, tone, context);
         let total = weights.total();
-        let roll = if total > 0 { rng.random_range(0..total) } else { 0 };
+        let roll = if total > 0 {
+            rng.random_range(0..total)
+        } else {
+            0
+        };
         let band = pick_response_band(&weights, roll);
         let delta = capped_by_unresolved_issue(
             team_talk_recent_reduction(team_talk_delta_for_band(tone, band), player, &action_key),

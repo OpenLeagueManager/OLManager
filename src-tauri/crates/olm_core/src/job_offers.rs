@@ -1,6 +1,6 @@
-use crate::game::Game;
 use crate::domain::manager::ManagerCareerEntry;
 use crate::domain::message::*;
+use crate::game::Game;
 use log::info;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
@@ -445,9 +445,9 @@ pub fn apply_job_offer_response(
 mod tests {
     use super::*;
     use crate::clock::GameClock;
-    use chrono::{TimeZone, Utc};
     use crate::domain::manager::Manager;
     use crate::domain::team::Team;
+    use chrono::{TimeZone, Utc};
 
     fn make_game(satisfaction: u8, has_team: bool) -> Game {
         let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 11, 1, 12, 0, 0).unwrap());
@@ -781,4 +781,3 @@ mod tests {
         assert_eq!(game.manager.career_history.len(), 0);
     }
 }
-

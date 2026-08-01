@@ -89,4 +89,3 @@ impl MatchEvent {
         matches!(self.event_type, EventType::Kill)
     }
 }
-

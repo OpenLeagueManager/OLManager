@@ -1,6 +1,6 @@
 use super::{action, format_money, params};
-use crate::narrative::{NarrativeSelector, load_default_content_pack};
 use crate::domain::message::*;
+use crate::narrative::{NarrativeSelector, load_default_content_pack};
 use rand::RngExt;
 
 // ---------------------------------------------------------------------------
@@ -341,7 +341,10 @@ pub(super) fn media_story_message(
     }
 
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "media_story", msg_id, date, "en",
+        "media_story",
+        msg_id,
+        date,
+        "en",
         vec![("team", team_name), ("player", player_name)],
     ) {
         return msg;
@@ -518,7 +521,10 @@ pub(super) fn allio_podcast_message(
 ) -> InboxMessage {
     let pname = player_name.unwrap_or("one of your players");
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "podcast", msg_id, date, "en",
+        "podcast",
+        msg_id,
+        date,
+        "en",
         vec![("team", team_name), ("player", pname)],
     ) {
         return msg;
@@ -681,7 +687,11 @@ pub(super) fn allio_podcast_message(
 
 pub(super) fn yuste_stream_message(msg_id: &str, is_positive: bool, date: &str) -> InboxMessage {
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "stream", msg_id, date, "en", vec![],
+        "stream",
+        msg_id,
+        date,
+        "en",
+        vec![],
     ) {
         return msg;
     }
@@ -928,4 +938,3 @@ pub(super) fn community_event_message(msg_id: &str, team_name: &str, date: &str)
     )
     .with_sender_i18n("be.sender.communityManager", "be.role.communityManager")
 }
-

@@ -208,4 +208,3 @@ pub struct WorldDatabaseInfo {
     /// Filesystem path (empty for built-in random)
     pub path: String,
 }
-

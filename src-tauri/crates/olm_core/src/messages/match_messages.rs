@@ -14,8 +14,15 @@ pub fn pre_match_message(
     let venue = if is_home { "home" } else { "away" };
     let venue_label = if is_home { "Local" } else { "Visitante" };
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "match_preview", &format!("preview_{fixture_id}"), date, "en",
-        vec![("opponent", opponent_name), ("venue", venue_label), ("date", match_date)],
+        "match_preview",
+        &format!("preview_{fixture_id}"),
+        date,
+        "en",
+        vec![
+            ("opponent", opponent_name),
+            ("venue", venue_label),
+            ("date", match_date),
+        ],
     ) {
         return msg;
     }
@@ -118,14 +125,23 @@ pub fn match_result_message(
     let is_home = home_team_id == user_team_id;
     let user_goals = if is_home { home_goals } else { away_goals };
     let opp_goals = if is_home { away_goals } else { home_goals };
-    let score = format!("{}:{user_goals}-{opp_goals}", if is_home { home_name } else { away_name });
+    let score = format!(
+        "{}:{user_goals}-{opp_goals}",
+        if is_home { home_name } else { away_name }
+    );
     let opponent = if is_home { away_name } else { home_name };
 
     if let Some(msg) = crate::messages::template_store::template_store().build_message(
-        "match_result", &format!("result_{fixture_id}"), date, "en",
+        "match_result",
+        &format!("result_{fixture_id}"),
+        date,
+        "en",
         vec![
-            ("home", home_name), ("away", away_name), ("score", &score),
-            ("opponent", opponent), ("matchday", &matchday.to_string()),
+            ("home", home_name),
+            ("away", away_name),
+            ("score", &score),
+            ("opponent", opponent),
+            ("matchday", &matchday.to_string()),
         ],
     ) {
         return msg;
@@ -245,4 +261,3 @@ pub fn match_result_message(
     )
     .with_sender_i18n("be.sender.matchReporter", "be.role.pressOfficer")
 }
-

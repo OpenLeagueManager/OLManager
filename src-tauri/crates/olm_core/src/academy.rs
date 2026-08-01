@@ -1,6 +1,8 @@
 use crate::domain::message::{InboxMessage, MessageCategory, MessageContext, MessagePriority};
-use crate::domain::team::{AcademyLifecycle, AcademyMetadata, ErlAssignment, FinancialTransactionKind, Team, TeamKind};
-use crate::finances::{record_transaction, BudgetImpact, FinanceTransactionInput};
+use crate::domain::team::{
+    AcademyLifecycle, AcademyMetadata, ErlAssignment, FinancialTransactionKind, Team, TeamKind,
+};
+use crate::finances::{BudgetImpact, FinanceTransactionInput, record_transaction};
 use crate::game::Game;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -60,10 +62,21 @@ pub struct ErlAcademyCandidate {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AcademyError {
-    ParentMustBeMainTeam { team_id: String },
-    AcademyAlreadyExists { parent_team_id: String, academy_team_id: String },
-    InsufficientFunds { available: i64, required: i64 },
-    UnrelatedAcademy { parent_team_id: String, academy_team_id: String },
+    ParentMustBeMainTeam {
+        team_id: String,
+    },
+    AcademyAlreadyExists {
+        parent_team_id: String,
+        academy_team_id: String,
+    },
+    InsufficientFunds {
+        available: i64,
+        required: i64,
+    },
+    UnrelatedAcademy {
+        parent_team_id: String,
+        academy_team_id: String,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -151,7 +164,8 @@ pub fn eligible_academy_creation_options(
         .iter()
         .filter(|erl| {
             erl.nearby_country_codes.is_empty()
-                || erl.nearby_country_codes
+                || erl
+                    .nearby_country_codes
                     .iter()
                     .any(|country| country_matches(country, team_country_code))
         })
@@ -218,12 +232,17 @@ pub fn validate_parent_academy_link(parent: &Team, academy: &Team) -> Result<(),
 
 /// Find a team by ID, returning a helpful error message.
 pub fn find_team<'a>(game: &'a Game, team_id: &str) -> Result<&'a Team, String> {
-    game.teams.iter().find(|team| team.id == team_id)
+    game.teams
+        .iter()
+        .find(|team| team.id == team_id)
         .ok_or_else(|| format!("Team '{}' not found", team_id))
 }
 
 /// Resolve the academy team ID linked to a parent team.
-pub fn resolve_manager_academy_team_id(game: &Game, parent_team_id: &str) -> Result<String, String> {
+pub fn resolve_manager_academy_team_id(
+    game: &Game,
+    parent_team_id: &str,
+) -> Result<String, String> {
     let parent = find_team(game, parent_team_id)?;
     if !parent.is_main() {
         return Err("Academy actions are only available for main teams".to_string());
@@ -231,14 +250,21 @@ pub fn resolve_manager_academy_team_id(game: &Game, parent_team_id: &str) -> Res
     if let Some(id) = parent.academy_team_id.clone() {
         return Ok(id);
     }
-    game.teams.iter()
-        .find(|t| t.team_kind == TeamKind::Academy && t.parent_team_id.as_deref() == Some(parent_team_id))
+    game.teams
+        .iter()
+        .find(|t| {
+            t.team_kind == TeamKind::Academy && t.parent_team_id.as_deref() == Some(parent_team_id)
+        })
         .map(|t| t.id.clone())
         .ok_or("No academy team linked to manager team".to_string())
 }
 
 /// Build AcademyMetadata from an acquisition option.
-pub fn academy_metadata(option: &AcademyAcquisitionOption, acquired_at: String, current_logo_url: Option<String>) -> AcademyMetadata {
+pub fn academy_metadata(
+    option: &AcademyAcquisitionOption,
+    acquired_at: String,
+    current_logo_url: Option<String>,
+) -> AcademyMetadata {
     AcademyMetadata {
         lifecycle: AcademyLifecycle::Active,
         erl_assignment: ErlAssignment {
@@ -262,7 +288,12 @@ pub fn academy_metadata(option: &AcademyAcquisitionOption, acquired_at: String, 
 }
 
 /// Push an inbox message notifying the manager about a completed academy acquisition.
-pub fn push_academy_acquired_message(game: &mut Game, parent: &Team, academy_name: &str, cost: i64) {
+pub fn push_academy_acquired_message(
+    game: &mut Game,
+    parent: &Team,
+    academy_name: &str,
+    cost: i64,
+) {
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
     let params = HashMap::from([
         ("team".to_string(), parent.name.clone()),
@@ -382,8 +413,7 @@ fn slugify_key(value: &str) -> String {
         .chars()
         .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' })
         .collect();
-    slug
-        .trim_matches('-')
+    slug.trim_matches('-')
         .split('-')
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
@@ -410,7 +440,9 @@ pub fn academy_seed_catalog() -> &'static Vec<AcademyTeamSeed> {
             Some(base) => {
                 let mut comps = base.clone();
                 comps.push("competitions");
-                if !comps.is_dir() { return vec![] }
+                if !comps.is_dir() {
+                    return vec![];
+                }
                 (comps, base.clone())
             }
             None => {
@@ -422,8 +454,9 @@ pub fn academy_seed_catalog() -> &'static Vec<AcademyTeamSeed> {
                     let mut d = cwd.clone();
                     d.push("data");
                     d.push("competitions");
-                    if d.is_dir() { d }
-                    else {
+                    if d.is_dir() {
+                        d
+                    } else {
                         d = cwd;
                         d.push("..");
                         d.push("data");
@@ -431,14 +464,21 @@ pub fn academy_seed_catalog() -> &'static Vec<AcademyTeamSeed> {
                         if d.is_dir() { d } else { return vec![] }
                     }
                 };
-                let data = comps.parent().and_then(|p| {
-                    let d = p.to_path_buf();
-                    if d.join("teams").is_dir() { Some(d) } else { None }
-                }).unwrap_or_else(|| {
-                    let mut d = comps.clone();
-                    d.pop();
-                    d
-                });
+                let data = comps
+                    .parent()
+                    .and_then(|p| {
+                        let d = p.to_path_buf();
+                        if d.join("teams").is_dir() {
+                            Some(d)
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_else(|| {
+                        let mut d = comps.clone();
+                        d.pop();
+                        d
+                    });
                 (comps, data)
             }
         };
@@ -451,7 +491,9 @@ pub fn academy_seed_catalog() -> &'static Vec<AcademyTeamSeed> {
         let mut teams = Vec::new();
         for entry in entries.flatten() {
             let dir_path = entry.path();
-            if !dir_path.is_dir() { continue; }
+            if !dir_path.is_dir() {
+                continue;
+            }
             let league_id = match dir_path.file_name().and_then(|n| n.to_str()) {
                 Some(n) => n.to_string(),
                 None => continue,
@@ -467,24 +509,39 @@ pub fn academy_seed_catalog() -> &'static Vec<AcademyTeamSeed> {
                 Err(_) => continue,
             };
 
-            if manifest["legacy"].as_bool().unwrap_or(false) { continue; }
+            if manifest["legacy"].as_bool().unwrap_or(false) {
+                continue;
+            }
             let tier = manifest["tier"].as_u64().unwrap_or(1);
-            if tier <= 1 { continue; }
+            if tier <= 1 {
+                continue;
+            }
 
             let league_name = manifest["name"].as_str().unwrap_or(&league_id).to_string();
             let country_code = manifest["country"].as_str().unwrap_or("EU").to_string();
 
-            info!("[academy] loading tier {} league: {} ({})", tier, league_name, league_id);
+            info!(
+                "[academy] loading tier {} league: {} ({})",
+                tier, league_name, league_id
+            );
 
-            let teams_path = data_base.join("teams").join(format!("{}_teams.json", league_id));
+            let teams_path = data_base
+                .join("teams")
+                .join(format!("{}_teams.json", league_id));
             let json_str = match std::fs::read_to_string(&teams_path) {
                 Ok(s) => s,
                 Err(_) => continue,
             };
-            let Some(teams_data) = serde_json::from_str::<serde_json::Value>(&json_str).ok() else { continue; };
-            let Some(team_entries) = teams_data["teams"].as_array() else { continue; };
+            let Some(teams_data) = serde_json::from_str::<serde_json::Value>(&json_str).ok() else {
+                continue;
+            };
+            let Some(team_entries) = teams_data["teams"].as_array() else {
+                continue;
+            };
 
-            let players_path = data_base.join("players").join(format!("{}_players.json", league_id));
+            let players_path = data_base
+                .join("players")
+                .join(format!("{}_players.json", league_id));
             let mut players_by_team_id: HashMap<String, Vec<AcademyPlayerSeed>> = HashMap::new();
             if let Ok(players_json) = std::fs::read_to_string(&players_path) {
                 if let Ok(players_data) = serde_json::from_str::<serde_json::Value>(&players_json) {
@@ -493,13 +550,28 @@ pub fn academy_seed_catalog() -> &'static Vec<AcademyTeamSeed> {
                             if let Some(tid) = player["team_id"].as_str() {
                                 let seed = AcademyPlayerSeed {
                                     role: player["position"].as_str().unwrap_or("Mid").to_string(),
-                                    nickname: player["match_name"].as_str().unwrap_or("Unknown").to_string(),
-                                    full_name: player["full_name"].as_str().unwrap_or("Unknown").to_string(),
-                                    nationality: player["nationality"].as_str().unwrap_or("Unknown").to_string(),
+                                    nickname: player["match_name"]
+                                        .as_str()
+                                        .unwrap_or("Unknown")
+                                        .to_string(),
+                                    full_name: player["full_name"]
+                                        .as_str()
+                                        .unwrap_or("Unknown")
+                                        .to_string(),
+                                    nationality: player["nationality"]
+                                        .as_str()
+                                        .unwrap_or("Unknown")
+                                        .to_string(),
                                     dob: player["date_of_birth"].as_str().map(|s| s.to_string()),
-                                    image_url: player["profile_image_url"].as_str().unwrap_or("").to_string(),
+                                    image_url: player["profile_image_url"]
+                                        .as_str()
+                                        .unwrap_or("")
+                                        .to_string(),
                                 };
-                                players_by_team_id.entry(tid.to_string()).or_default().push(seed);
+                                players_by_team_id
+                                    .entry(tid.to_string())
+                                    .or_default()
+                                    .push(seed);
                             }
                         }
                     }
@@ -555,8 +627,9 @@ fn catalogs_from_tier2_manifests() -> Vec<ErlLeagueDefinition> {
             let mut d = cwd.clone();
             d.push("data");
             d.push("competitions");
-            if d.is_dir() { d }
-            else {
+            if d.is_dir() {
+                d
+            } else {
                 d = cwd;
                 d.push("..");
                 d.push("data");
@@ -574,9 +647,13 @@ fn catalogs_from_tier2_manifests() -> Vec<ErlLeagueDefinition> {
 
     for entry in entries.flatten() {
         let dir_path = entry.path();
-        if !dir_path.is_dir() { continue; }
+        if !dir_path.is_dir() {
+            continue;
+        }
         let manifest_path = dir_path.join("manifest.json");
-        if !manifest_path.exists() { continue; }
+        if !manifest_path.exists() {
+            continue;
+        }
         let league_id = match dir_path.file_name().and_then(|n| n.to_str()) {
             Some(n) => n.to_string(),
             None => continue,
@@ -588,9 +665,13 @@ fn catalogs_from_tier2_manifests() -> Vec<ErlLeagueDefinition> {
         };
         if let Ok(manifest) = serde_json::from_str::<CompetitionManifest>(&json_str) {
             // Skip legacy competitions
-            if manifest.legacy { continue; }
+            if manifest.legacy {
+                continue;
+            }
             // Only tier 2+ competitions are ERL / academy sources
-            if manifest.tier.unwrap_or(1) <= 1 { continue; }
+            if manifest.tier.unwrap_or(1) <= 1 {
+                continue;
+            }
 
             let country_code = manifest.country.clone().unwrap_or_default();
             let region = manifest.region.clone();
@@ -654,18 +735,26 @@ pub fn academy_candidate_catalog() -> &'static [ErlAcademyCandidate] {
 // ── Academy acquisition (from Game state) ────────────────────
 
 fn normalize(val: &str) -> String {
-    val.to_lowercase().chars().filter(|c| c.is_ascii_alphanumeric()).collect()
+    val.to_lowercase()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect()
 }
 
 /// Compute available acquisition options and any blocking reason for a parent team.
-pub fn get_acquisition_options(game: &Game, parent_team_id: &str) -> (Vec<AcademyAcquisitionOption>, Option<String>) {
+pub fn get_acquisition_options(
+    game: &Game,
+    parent_team_id: &str,
+) -> (Vec<AcademyAcquisitionOption>, Option<String>) {
     let parent = match game.teams.iter().find(|t| t.id == parent_team_id) {
         Some(t) => t.clone(),
         None => return (vec![], Some("Team not found".to_string())),
     };
 
     // Already occupied academy team IDs + names
-    let occupied: HashSet<String> = game.teams.iter()
+    let occupied: HashSet<String> = game
+        .teams
+        .iter()
         .filter(|t| t.team_kind == TeamKind::Academy && t.parent_team_id.is_some())
         .flat_map(|t| {
             let mut ids = vec![t.id.clone()];
@@ -676,7 +765,9 @@ pub fn get_acquisition_options(game: &Game, parent_team_id: &str) -> (Vec<Academ
         })
         .collect();
 
-    let taken: HashSet<String> = game.teams.iter()
+    let taken: HashSet<String> = game
+        .teams
+        .iter()
         .filter(|t| t.team_kind == TeamKind::Academy && t.parent_team_id.is_some())
         .filter_map(|t| t.academy.as_ref().map(|m| normalize(&m.original_name)))
         .collect();
@@ -713,12 +804,17 @@ pub fn acquire_academy(
     custom_name: Option<&str>,
     custom_short_name: Option<&str>,
 ) -> Result<(), String> {
-    let pidx = game.teams.iter().position(|t| t.id == parent_team_id)
+    let pidx = game
+        .teams
+        .iter()
+        .position(|t| t.id == parent_team_id)
         .ok_or_else(|| "Parent team not found".to_string())?;
 
     // Recompute fresh options to validate
     let (options, _) = get_acquisition_options(game, parent_team_id);
-    let opt = options.into_iter().find(|o| o.source_team_id == source_team_id)
+    let opt = options
+        .into_iter()
+        .find(|o| o.source_team_id == source_team_id)
         .ok_or_else(|| "Acquisition option not available".to_string())?;
 
     if game.teams[pidx].finance < opt.acquisition_cost {
@@ -736,12 +832,19 @@ pub fn acquire_academy(
             affects_season_totals: true,
             source: "academy".to_string(),
             source_id: Some(source_team_id.to_string()),
-            correlation_id: Some(format!("academy-acquisition:{parent_team_id}:{source_team_id}")),
+            correlation_id: Some(format!(
+                "academy-acquisition:{parent_team_id}:{source_team_id}"
+            )),
         },
-    ).map_err(|err| format!("Failed to record academy acquisition: {err:?}"))?;
+    )
+    .map_err(|err| format!("Failed to record academy acquisition: {err:?}"))?;
     game.teams[pidx].academy_team_id = Some(source_team_id.to_string());
 
-    if let Some(idx) = game.teams.iter().position(|t| t.id == source_team_id && t.team_kind == TeamKind::Academy) {
+    if let Some(idx) = game
+        .teams
+        .iter()
+        .position(|t| t.id == source_team_id && t.team_kind == TeamKind::Academy)
+    {
         game.teams[idx].name = custom_name.unwrap_or(&opt.name).to_string();
         game.teams[idx].short_name = custom_short_name.unwrap_or(&opt.short_name).to_string();
         game.teams[idx].parent_team_id = Some(parent_team_id.to_string());

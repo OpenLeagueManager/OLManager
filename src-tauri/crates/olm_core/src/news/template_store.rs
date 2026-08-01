@@ -277,31 +277,37 @@ impl NewsTemplate {
             };
 
         // ── Body ────────────────────────────────────────────────
-        let (body_text, used_body_key) =
-            if let Some(idx) = body_variant {
-                // Caller-selected variant
-                if let Some(lt) = lang_t.and_then(|t| t.body_variants.get(idx)) {
-                    (interpolate(&lt.text, params), lt.body_key.clone())
-                } else if let Some(v) = self.body_variants.get(idx) {
-                    (interpolate(&v.text, params), v.body_key.clone())
-                } else {
-                    fallback_body(&self.body_default, lang_t, params)
-                }
+        let (body_text, used_body_key) = if let Some(idx) = body_variant {
+            // Caller-selected variant
+            if let Some(lt) = lang_t.and_then(|t| t.body_variants.get(idx)) {
+                (interpolate(&lt.text, params), lt.body_key.clone())
+            } else if let Some(v) = self.body_variants.get(idx) {
+                (interpolate(&v.text, params), v.body_key.clone())
             } else {
                 fallback_body(&self.body_default, lang_t, params)
-            };
+            }
+        } else {
+            fallback_body(&self.body_default, lang_t, params)
+        };
 
         // ── Source ──────────────────────────────────────────────
-        let src = select_random(&self.sources, &mut rng)
-            .expect("Template must have at least one source");
+        let src =
+            select_random(&self.sources, &mut rng).expect("Template must have at least one source");
 
         let i18n_params: HashMap<String, String> = params
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
 
-        NewsArticle::new(id, headline_text, body_text, src.text.clone(), date, self.category.clone())
-            .with_i18n(&headline_key, &used_body_key, &src.key, i18n_params)
+        NewsArticle::new(
+            id,
+            headline_text,
+            body_text,
+            src.text.clone(),
+            date,
+            self.category.clone(),
+        )
+        .with_i18n(&headline_key, &used_body_key, &src.key, i18n_params)
     }
 }
 

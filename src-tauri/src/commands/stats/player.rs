@@ -351,5 +351,3 @@ pub(super) fn get_player_stats_overview_internal(
 
     Ok(build_legacy_overview())
 }
-
-

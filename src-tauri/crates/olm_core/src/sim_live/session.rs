@@ -30,5 +30,3 @@ pub struct SimLiveSession {
     pub ai_mode: SimulatorAiMode,
     pub policy: SimulatorPolicyConfig,
 }
-
-

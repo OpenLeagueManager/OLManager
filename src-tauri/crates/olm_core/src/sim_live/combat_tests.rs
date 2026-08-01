@@ -292,18 +292,22 @@ fn summon_expires_after_configured_duration() {
 
     let mut runtime = test_runtime(vec![annie], vec![], vec![], neutral);
     resolve_champion_combat(&mut runtime);
-    assert!(runtime
-        .minions
-        .iter()
-        .any(|minion| minion.alive && minion.kind == "summon"));
+    assert!(
+        runtime
+            .minions
+            .iter()
+            .any(|minion| minion.alive && minion.kind == "summon")
+    );
 
     runtime.time_sec += 46.0;
     move_minions(&mut runtime, 0.1);
 
-    assert!(!runtime
-        .minions
-        .iter()
-        .any(|minion| minion.alive && minion.kind == "summon"));
+    assert!(
+        !runtime
+            .minions
+            .iter()
+            .any(|minion| minion.alive && minion.kind == "summon")
+    );
 }
 
 #[test]

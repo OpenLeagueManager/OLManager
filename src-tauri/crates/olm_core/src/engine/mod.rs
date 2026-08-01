@@ -8,18 +8,17 @@
 pub mod ai;
 pub mod engine;
 pub mod event;
-pub mod sim_background;
 pub mod report;
+pub mod sim_background;
 pub mod types;
 
 // Re-export key types for convenience
 pub use engine::simulate_lol;
 pub use event::{EventType, MatchEvent};
+pub use report::{KillDetail, MatchReport, MatchReportEndReason, PlayerMatchStats, TeamStats};
 pub use sim_background::LolRole;
 pub use sim_background::{
     LiveMatchState, MatchCommand, MatchPhase, MatchSnapshot, MinuteResult, SubstitutionRecord,
     TeamRoles,
 };
-pub use report::{KillDetail, MatchReport, MatchReportEndReason, PlayerMatchStats, TeamStats};
 pub use types::{DraftStrategy, MatchConfig, PlayerData, Side, TeamData, Zone};
-

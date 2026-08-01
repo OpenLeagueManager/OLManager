@@ -1,11 +1,11 @@
 use chrono::{TimeZone, Utc};
+use olm_core::clock::GameClock;
 use olm_core::domain::manager::Manager;
 use olm_core::domain::message::*;
 use olm_core::domain::player::{Player, PlayerAttributes};
 use olm_core::domain::staff::{Staff, StaffAttributes, StaffRole};
 use olm_core::domain::stats::LolRole;
 use olm_core::domain::team::Team;
-use olm_core::clock::GameClock;
 use olm_core::game::Game;
 use olm_core::scouting::{process_scouting, scout_max_assignments, send_scout};
 

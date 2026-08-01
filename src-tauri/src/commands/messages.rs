@@ -203,10 +203,10 @@ mod tests {
         resolve_message_action_internal,
     };
     use chrono::{TimeZone, Utc};
+    use olm_core::clock::GameClock;
     use olm_core::domain::manager::Manager;
     use olm_core::domain::message::{ActionType, InboxMessage, MessageAction};
     use olm_core::domain::team::Team;
-    use olm_core::clock::GameClock;
     use olm_core::game::Game;
     use olm_core::state::StateManager;
 
@@ -442,5 +442,3 @@ mod tests {
             .any(|message| message.id == "remove-stale"));
     }
 }
-
-

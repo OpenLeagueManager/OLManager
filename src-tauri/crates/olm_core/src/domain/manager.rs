@@ -133,4 +133,3 @@ impl Manager {
         self.career_stats.wins as f32 / self.career_stats.matches_managed as f32 * 100.0
     }
 }
-

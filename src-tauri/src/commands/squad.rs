@@ -11,7 +11,9 @@ use olm_core::scrim_flow::{
 };
 use olm_core::state::StateManager;
 
-fn parse_post_scrim_decision(value: &str) -> Result<olm_core::domain::team::PostScrimDecision, String> {
+fn parse_post_scrim_decision(
+    value: &str,
+) -> Result<olm_core::domain::team::PostScrimDecision, String> {
     match value {
         "ContinuePlan" => Ok(olm_core::domain::team::PostScrimDecision::ContinuePlan),
         "VodReview" => Ok(olm_core::domain::team::PostScrimDecision::VodReview),
@@ -150,7 +152,10 @@ fn weekly_scrim_setup_lock_state(
     .min()
     .unwrap_or(2);
 
-    let has_any_plan = team.weekly_scrim_plan_team_ids.iter().any(|plan| !plan.is_empty());
+    let has_any_plan = team
+        .weekly_scrim_plan_team_ids
+        .iter()
+        .any(|plan| !plan.is_empty());
     if !has_any_plan {
         // Allow configuration at any time when no scrims have been planned yet
         // (e.g. first day of the game or start of a new split)
@@ -1024,7 +1029,8 @@ pub fn auto_configure_weekly_scrim_setup(state: State<'_, StateManager>) -> Resu
                 .rev()
                 .map(|(id, _)| id.clone())
                 .collect(),
-            olm_core::domain::team::ScrimFocus::ChampionPool | olm_core::domain::team::ScrimFocus::EarlyGame => {
+            olm_core::domain::team::ScrimFocus::ChampionPool
+            | olm_core::domain::team::ScrimFocus::EarlyGame => {
                 let split = (rivals_by_strength.len() / 3).max(1);
                 rivals_by_strength
                     .iter()
@@ -1341,12 +1347,18 @@ pub fn delegate_scrim_decision(state: State<'_, StateManager>) -> Result<Game, S
         olm_core::domain::team::PostScrimDecision::MentalReset
     } else if matches!(
         issue,
-        Some(olm_core::domain::team::ScrimIssue::ObjectiveSetup | olm_core::domain::team::ScrimIssue::DraftGap)
+        Some(
+            olm_core::domain::team::ScrimIssue::ObjectiveSetup
+                | olm_core::domain::team::ScrimIssue::DraftGap
+        )
     ) {
         olm_core::domain::team::PostScrimDecision::VodReview
     } else if matches!(
         issue,
-        Some(olm_core::domain::team::ScrimIssue::ChampionComfort | olm_core::domain::team::ScrimIssue::LanePressure)
+        Some(
+            olm_core::domain::team::ScrimIssue::ChampionComfort
+                | olm_core::domain::team::ScrimIssue::LanePressure
+        )
     ) {
         olm_core::domain::team::PostScrimDecision::TargetedDrills
     } else {
@@ -1908,11 +1920,11 @@ pub fn auto_select_team_roles(
 #[cfg(test)]
 mod tests {
     use chrono::{TimeZone, Utc};
+    use olm_core::clock::GameClock;
     use olm_core::domain::manager::Manager;
-    use olm_core::domain::player::{Player, PlayerAttributes, LolRole};
+    use olm_core::domain::player::{LolRole, Player, PlayerAttributes};
     use olm_core::domain::staff::{Staff, StaffAttributes, StaffRole};
     use olm_core::domain::team::{Team, TrainingFocus, TrainingIntensity, TrainingSchedule};
-    use olm_core::clock::GameClock;
     use olm_core::game::Game;
 
     fn attrs(stat: u8) -> PlayerAttributes {
@@ -2087,5 +2099,3 @@ mod tests {
         assert_eq!(after.mental_resilience, before.mental_resilience);
     }
 }
-
-

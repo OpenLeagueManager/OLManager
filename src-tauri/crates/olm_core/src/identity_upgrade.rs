@@ -1,7 +1,7 @@
-use crate::game::Game;
 use crate::domain::identity::derive_birth_country_code;
 use crate::domain::player::Player;
 use crate::domain::staff::Staff;
+use crate::game::Game;
 
 /// Legacy: upgrade national identity fields (birth_country normalization).
 /// After LoL migration, `football_nation` is removed from domain types.
@@ -81,11 +81,11 @@ fn normalize_birth_country(value: Option<String>) -> Option<String> {
 mod tests {
     use super::*;
     use crate::clock::GameClock;
-    use crate::game::Game;
-    use chrono::{TimeZone, Utc};
     use crate::domain::manager::Manager;
     use crate::domain::player::{LolRole, Player, PlayerAttributes};
     use crate::domain::team::Team;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
 
     fn sample_attrs() -> PlayerAttributes {
         PlayerAttributes {
@@ -144,4 +144,3 @@ mod tests {
         assert_eq!(game.players[0].birth_country, Some("ENG".to_string()));
     }
 }
-

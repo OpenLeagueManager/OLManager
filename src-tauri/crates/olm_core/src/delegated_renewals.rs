@@ -4,14 +4,16 @@ use crate::contracts::{
     DelegatedRenewalResultStatus, contract_warning_stage, expected_contract_years, expected_wage,
     has_active_manager_block, round_up_to_nearest_thousand,
 };
-use crate::game::Game;
-use chrono::{Months, NaiveDate};
 use crate::domain::message::{
     DelegatedRenewalCaseData as DelegatedRenewalCaseMessageData, DelegatedRenewalReportData,
     InboxMessage, MessageCategory, MessageContext, MessagePriority,
 };
-use crate::domain::player::{ContractRenewalState, Player, RenewalSessionOutcome, RenewalSessionStatus};
+use crate::domain::player::{
+    ContractRenewalState, Player, RenewalSessionOutcome, RenewalSessionStatus,
+};
 use crate::domain::staff::StaffRole;
+use crate::game::Game;
+use chrono::{Months, NaiveDate};
 use std::collections::{HashMap, HashSet};
 
 pub fn delegate_renewals(
@@ -339,4 +341,3 @@ fn delegated_renewal_report_message(
         ..Default::default()
     })
 }
-

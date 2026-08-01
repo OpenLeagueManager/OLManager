@@ -1,8 +1,8 @@
-use crate::game::{Game, ScoutingAssignment};
 use crate::domain::message::*;
 use crate::domain::staff::StaffRole;
 use crate::domain::stats::LolRole;
 use crate::domain::team::MainFacilityModuleKind;
+use crate::game::{Game, ScoutingAssignment};
 use rand::RngExt;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -396,4 +396,3 @@ fn build_scout_report(
     })
     .with_sender_i18n("be.sender.scout", "be.role.scout")
 }
-

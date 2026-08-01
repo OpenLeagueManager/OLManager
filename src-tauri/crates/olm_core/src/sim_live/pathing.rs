@@ -1,10 +1,10 @@
 use std::cmp::Ordering;
 
 use super::{
+    ChampionRuntime, FIRST_WAVE_CONTEST_UNTIL, LANE_EMPTY_ANCHOR_PROGRESS_MAX_INDEX, LanePressure,
+    LaneRoleProfile, MINION_FIRST_WAVE_AT, MinionRuntime, RuntimeState, StructureRuntime, Vec2,
     base_position_for, clamp, closest_lane_path_index, dist, lane_path_for, normalize,
-    normalized_lane, normalized_team, ChampionRuntime, LanePressure, LaneRoleProfile,
-    MinionRuntime, RuntimeState, StructureRuntime, Vec2, FIRST_WAVE_CONTEST_UNTIL,
-    LANE_EMPTY_ANCHOR_PROGRESS_MAX_INDEX, MINION_FIRST_WAVE_AT,
+    normalized_lane, normalized_team,
 };
 
 pub(super) fn lane_role_profile(champion: &ChampionRuntime) -> Option<LaneRoleProfile> {

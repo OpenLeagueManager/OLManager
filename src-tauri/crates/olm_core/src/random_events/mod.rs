@@ -7,9 +7,9 @@ pub use message_builders::build_media_story_from_narrative;
 pub use responses::apply_event_response;
 
 use crate::contracts::{ContractWarningStage, contract_warning_stage};
+use crate::domain::message::*;
 use crate::game::Game;
 use chrono::Datelike;
-use crate::domain::message::*;
 use rand::RngExt;
 use std::collections::HashMap;
 
@@ -364,4 +364,3 @@ fn format_money(amount: u64) -> String {
         amount.to_string()
     }
 }
-

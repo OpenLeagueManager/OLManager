@@ -9,10 +9,10 @@ use crate::application::live_match::{
     get_match_snapshot as get_match_snapshot_service, start_live_match as start_live_match_service,
     step_live_match as step_live_match_service, LolSimMatchReportInput,
 };
-use olm_core::team_talk::apply_team_talk as apply_team_talk_core;
 use olm_core::domain::stats::MatchOutcome;
 use olm_core::game::Game;
 use olm_core::state::StateManager;
+use olm_core::team_talk::apply_team_talk as apply_team_talk_core;
 
 fn apply_delta(value: u8, delta: i16) -> u8 {
     ((value as i16) + delta).clamp(10, 100) as u8
@@ -133,7 +133,9 @@ pub fn apply_match_command(
 
 /// Get current match snapshot without advancing time.
 #[tauri::command]
-pub fn get_match_snapshot(state: State<'_, StateManager>) -> Result<olm_core::engine::MatchSnapshot, String> {
+pub fn get_match_snapshot(
+    state: State<'_, StateManager>,
+) -> Result<olm_core::engine::MatchSnapshot, String> {
     get_match_snapshot_service(&state)
 }
 
@@ -146,7 +148,12 @@ pub fn finish_live_match(
 ) -> Result<FinishLiveMatchResponse, String> {
     let settings = crate::commands::settings::get_settings(app_handle.clone()).unwrap_or_default();
     let data_base = crate::commands::competitions::resolve_data_base(&app_handle);
-    finish_live_match_internal(&state, lol_report, Some(settings.language.as_str()), data_base.as_deref())
+    finish_live_match_internal(
+        &state,
+        lol_report,
+        Some(settings.language.as_str()),
+        data_base.as_deref(),
+    )
 }
 
 #[tauri::command]
@@ -436,6 +443,7 @@ mod tests {
         apply_press_conference_effects, apply_team_talk_internal, finish_live_match_internal,
     };
     use chrono::{TimeZone, Utc};
+    use olm_core::clock::GameClock;
     use olm_core::domain::league::{
         Fixture, FixtureStatus, League, LeagueKind, MatchType, StandingEntry,
     };
@@ -444,7 +452,6 @@ mod tests {
         LolRole, Player, PlayerAttributes, PlayerIssue, PlayerIssueCategory,
     };
     use olm_core::domain::team::Team;
-    use olm_core::clock::GameClock;
     use olm_core::game::Game;
     use olm_core::live_match_manager::{self, MatchMode};
     use olm_core::state::StateManager;
@@ -560,19 +567,17 @@ mod tests {
             split_index: 0,
             tier: 0,
             active: false,
-            fixtures: vec![
-                Fixture {
-                    id: "fix1".to_string(),
-                    matchday: 1,
-                    date: "2025-06-15".to_string(),
-                    home_team_id: "team1".to_string(),
-                    away_team_id: "team2".to_string(),
-                    match_type: MatchType::League,
-                    best_of: 1,
-                    status: FixtureStatus::Scheduled,
-                    result: None,
-                },
-            ],
+            fixtures: vec![Fixture {
+                id: "fix1".to_string(),
+                matchday: 1,
+                date: "2025-06-15".to_string(),
+                home_team_id: "team1".to_string(),
+                away_team_id: "team2".to_string(),
+                match_type: MatchType::League,
+                best_of: 1,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            }],
             standings: vec![
                 StandingEntry::new("team1".to_string()),
                 StandingEntry::new("team2".to_string()),
@@ -665,8 +670,8 @@ mod tests {
         state.set_game(game);
         state.set_live_match(session);
 
-        let response =
-            finish_live_match_internal(&state, None, None, None).expect("finish live match response");
+        let response = finish_live_match_internal(&state, None, None, None)
+            .expect("finish live match response");
 
         let round_summary = response.round_summary.expect("round summary response");
         assert!(round_summary.is_complete);
@@ -730,4 +735,3 @@ mod tests {
         assert!(delta_for(&second, "t1_mid0") <= delta_for(&first, "t1_mid0"));
     }
 }
-

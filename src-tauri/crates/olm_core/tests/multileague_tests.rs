@@ -1,10 +1,12 @@
 use chrono::{TimeZone, Utc};
-use olm_core::domain::league::{Fixture, League, LeagueKind, MatchType, FixtureStatus, StandingEntry};
+use olm_core::clock::GameClock;
+use olm_core::domain::league::{
+    Fixture, FixtureStatus, League, LeagueKind, MatchType, StandingEntry,
+};
 use olm_core::domain::manager::Manager;
 use olm_core::domain::player::{Player, PlayerAttributes};
 use olm_core::domain::stats::LolRole;
 use olm_core::domain::team::Team;
-use olm_core::clock::GameClock;
 use olm_core::game::Game;
 use olm_core::turn;
 use std::collections::HashMap;
@@ -290,22 +292,14 @@ fn fixture_isolation_between_competitions() {
     }
 
     // LEC standings should be updated
-    let lec_standings_total: u32 = lec_league
-        .standings
-        .iter()
-        .map(|s| s.played)
-        .sum();
+    let lec_standings_total: u32 = lec_league.standings.iter().map(|s| s.played).sum();
     assert_eq!(
         lec_standings_total, 2,
         "LEC: total games played across standings should reflect the fixture"
     );
 
     // LCS standings should be updated independently
-    let lcs_standings_total: u32 = lcs_league
-        .standings
-        .iter()
-        .map(|s| s.played)
-        .sum();
+    let lcs_standings_total: u32 = lcs_league.standings.iter().map(|s| s.played).sum();
     assert_eq!(
         lcs_standings_total, 2,
         "LCS: total games played across standings should reflect the fixture"
@@ -314,7 +308,10 @@ fn fixture_isolation_between_competitions() {
     // Leagues should NOT share standings entries
     for entry in &lec_league.standings {
         assert!(
-            !lcs_league.standings.iter().any(|e| e.team_id == entry.team_id),
+            !lcs_league
+                .standings
+                .iter()
+                .any(|e| e.team_id == entry.team_id),
             "LCS should not contain LEC teams in standings"
         );
     }
@@ -413,14 +410,7 @@ fn background_simulation_updates_standings() {
     };
 
     // Background league 2: CBLOL
-    let cblol = make_league(
-        "cblol",
-        "CBLOL",
-        "cblol",
-        &["team5", "team6"],
-        today,
-        1,
-    );
+    let cblol = make_league("cblol", "CBLOL", "cblol", &["team5", "team6"], today, 1);
 
     // Background league 3: PCS (with extra teams, no fixture today)
     let pcs_future_date = "2025-06-22";
@@ -428,19 +418,17 @@ fn background_simulation_updates_standings() {
         id: "pcs".to_string(),
         name: "PCS".to_string(),
         season: 2025,
-        fixtures: vec![
-            Fixture {
-                id: "pcs-fix1".to_string(),
-                matchday: 1,
-                date: pcs_future_date.to_string(),
-                home_team_id: "team7".to_string(),
-                away_team_id: "team8".to_string(),
-                match_type: MatchType::League,
-                best_of: 1,
-                status: FixtureStatus::Scheduled,
-                result: None,
-            },
-        ],
+        fixtures: vec![Fixture {
+            id: "pcs-fix1".to_string(),
+            matchday: 1,
+            date: pcs_future_date.to_string(),
+            home_team_id: "team7".to_string(),
+            away_team_id: "team8".to_string(),
+            match_type: MatchType::League,
+            best_of: 1,
+            status: FixtureStatus::Scheduled,
+            result: None,
+        }],
         standings: vec![
             StandingEntry::new("team7".to_string()),
             StandingEntry::new("team8".to_string()),

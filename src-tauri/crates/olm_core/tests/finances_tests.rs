@@ -840,7 +840,9 @@ fn monthly_finance_hooks_send_sponsor_upkeep_bonus_and_expiry_mail_once() {
     assert!(
         finance_ids.contains(&"finance:sponsor-expired:team1:Acme Corp:2025-06-01:sponsorExpired")
     );
-    assert!(finance_ids.contains(&"finance:facility-upkeep:team1:2025-06-01:facilityUpkeepSummary"));
+    assert!(
+        finance_ids.contains(&"finance:facility-upkeep:team1:2025-06-01:facilityUpkeepSummary")
+    );
     assert!(
         finance_ids.contains(&"finance:facility-upkeep-spike:team1:2025-06-01:facilityUpkeepSpike")
     );

@@ -8,9 +8,7 @@ use olm_core::domain::player::{Player, PlayerAttributes};
 use olm_core::domain::stats::LolRole;
 use olm_core::domain::team::Team;
 use olm_core::game::Game;
-use olm_core::roster_stability::{
-    evaluate_team, RepairAction, RosterStabilityReason,
-};
+use olm_core::roster_stability::{RepairAction, RosterStabilityReason, evaluate_team};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -121,10 +119,20 @@ fn game_with_ai_team(players: Vec<Player>, lineup: Vec<&str>) -> Game {
 fn expired_roster(team_id: &str) -> Vec<Player> {
     vec![
         player("exp-top", Some(team_id), LolRole::Top, Some("2026-07-31")),
-        player("exp-jungle", Some(team_id), LolRole::Jungle, Some("2026-07-31")),
+        player(
+            "exp-jungle",
+            Some(team_id),
+            LolRole::Jungle,
+            Some("2026-07-31"),
+        ),
         player("exp-mid", Some(team_id), LolRole::Mid, Some("2026-07-31")),
         player("exp-adc", Some(team_id), LolRole::Adc, Some("2026-07-31")),
-        player("exp-support", Some(team_id), LolRole::Support, Some("2026-07-31")),
+        player(
+            "exp-support",
+            Some(team_id),
+            LolRole::Support,
+            Some("2026-07-31"),
+        ),
     ]
 }
 
@@ -146,7 +154,10 @@ fn same_day_mass_expiry_depletes_ai_team_and_repair_restores_eligibility() {
     // still belong to the team (not yet released).
     let before = evaluate_team(&game, "ai-team", RosterStabilityReason::ContractExpired)
         .expect("team should evaluate before expiry");
-    assert!(!before.match_eligible, "team should be ineligible before expiry processing");
+    assert!(
+        !before.match_eligible,
+        "team should be ineligible before expiry processing"
+    );
     assert_eq!(before.eligible_player_count, 0, "all contracts are expired");
 
     // Process contract expiries — this should release expired players AND
@@ -171,22 +182,33 @@ fn role_loss_expiry_restores_eligibility_after_repair() {
     // Four players with active contracts, one key role (support) expired.
     let players = vec![
         player("top", Some("ai-team"), LolRole::Top, Some("2028-06-30")),
-        player("jungle", Some("ai-team"), LolRole::Jungle, Some("2028-06-30")),
+        player(
+            "jungle",
+            Some("ai-team"),
+            LolRole::Jungle,
+            Some("2028-06-30"),
+        ),
         player("mid", Some("ai-team"), LolRole::Mid, Some("2028-06-30")),
         player("adc", Some("ai-team"), LolRole::Adc, Some("2028-06-30")),
-        player("exp-support", Some("ai-team"), LolRole::Support, Some("2026-07-31")),
+        player(
+            "exp-support",
+            Some("ai-team"),
+            LolRole::Support,
+            Some("2026-07-31"),
+        ),
     ];
-    let mut game = game_with_ai_team(
-        players,
-        vec!["top", "jungle", "mid", "adc", "exp-support"],
-    );
+    let mut game = game_with_ai_team(players, vec!["top", "jungle", "mid", "adc", "exp-support"]);
 
     // Before: team is missing support due to expired contract
     let before = evaluate_team(&game, "ai-team", RosterStabilityReason::ContractExpired)
         .expect("team should evaluate before expiry");
     assert!(!before.match_eligible);
     assert!(before.missing_roles.contains(&LolRole::Support));
-    assert!(before.expired_player_ids.contains(&"exp-support".to_string()));
+    assert!(
+        before
+            .expired_player_ids
+            .contains(&"exp-support".to_string())
+    );
 
     // Process contract expiries — releases exp-support, then repair fills the role
     olm_core::contracts::process_contract_expiries(&mut game);
@@ -207,7 +229,10 @@ fn role_loss_expiry_restores_eligibility_after_repair() {
     // repair_team may re-sign them as a free agent (assign_free_agent picks up
     // players with contract_end == None). Either way, the team's support role
     // is covered.
-    let exp_support = game.players.iter().find(|p| p.id == "exp-support")
+    let exp_support = game
+        .players
+        .iter()
+        .find(|p| p.id == "exp-support")
         .expect("exp-support should still exist");
     // The player is either re-signed to ai-team (by free-agent assignment) or
     // remains a free agent — either state is valid as long as the team is eligible.
@@ -223,23 +248,28 @@ fn user_managed_team_expiry_evaluates_but_does_not_auto_repair() {
     // non-player AI teams, not user-managed ones.
     let manager_id = "manager-1";
     let mut user_team = team("user-team", Some(manager_id), vec![]);
-    user_team.active_lineup_ids = vec!["exp-top".to_string(), "exp-jungle".to_string(),
-        "exp-mid".to_string(), "exp-adc".to_string(), "exp-support".to_string()];
+    user_team.active_lineup_ids = vec![
+        "exp-top".to_string(),
+        "exp-jungle".to_string(),
+        "exp-mid".to_string(),
+        "exp-adc".to_string(),
+        "exp-support".to_string(),
+    ];
 
     let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
     let mut manager = Manager::new(
-        manager_id.to_string(), "Jane".to_string(), "Doe".to_string(),
-        "1980-01-01".to_string(), "Spain".to_string(),
+        manager_id.to_string(),
+        "Jane".to_string(),
+        "Doe".to_string(),
+        "1980-01-01".to_string(),
+        "Spain".to_string(),
     );
     manager.hire("user-team".to_string());
 
     let mut game = Game::new(
         clock,
         manager,
-        vec![
-            user_team,
-            team("other-ai", None, vec![]),
-        ],
+        vec![user_team, team("other-ai", None, vec![])],
         expired_roster("user-team"),
         vec![],
         vec![],
@@ -269,24 +299,33 @@ fn ai_team_transfer_out_restores_eligibility_after_repair() {
     // the player, the wiring must repair the team.
     let players = vec![
         player("top", Some("ai-team"), LolRole::Top, Some("2028-06-30")),
-        player("jungle", Some("ai-team"), LolRole::Jungle, Some("2028-06-30")),
+        player(
+            "jungle",
+            Some("ai-team"),
+            LolRole::Jungle,
+            Some("2028-06-30"),
+        ),
         player("mid", Some("ai-team"), LolRole::Mid, Some("2028-06-30")),
         player("adc", Some("ai-team"), LolRole::Adc, Some("2028-06-30")),
-        player("support", Some("ai-team"), LolRole::Support, Some("2028-06-30")),
+        player(
+            "support",
+            Some("ai-team"),
+            LolRole::Support,
+            Some("2028-06-30"),
+        ),
     ];
-    let mut game = game_with_ai_team(
-        players,
-        vec!["top", "jungle", "mid", "adc", "support"],
-    );
+    let mut game = game_with_ai_team(players, vec!["top", "jungle", "mid", "adc", "support"]);
     // Add a buyer team to the game
     game.teams.push(team("buyer-team", None, vec![]));
 
     // Execute transfer: move support from ai-team to buyer-team (internal fn)
     // This simulates an AI team selling a player.
-    let result = crate::transfer_out_from_ai_team(
-        &mut game, "support", "ai-team", "buyer-team",
+    let result = crate::transfer_out_from_ai_team(&mut game, "support", "ai-team", "buyer-team");
+    assert!(
+        result.is_ok(),
+        "transfer should succeed: {:?}",
+        result.err()
     );
-    assert!(result.is_ok(), "transfer should succeed: {:?}", result.err());
 
     // After transfer-out, the AI team must still be match eligible
     let evaluated = evaluate_team(&game, "ai-team", RosterStabilityReason::TransferOut)
@@ -295,8 +334,10 @@ fn ai_team_transfer_out_restores_eligibility_after_repair() {
         evaluated.match_eligible,
         "AI team should be match eligible after selling a key player"
     );
-    assert!(evaluated.missing_roles.is_empty(),
-        "all roles should be covered after repair");
+    assert!(
+        evaluated.missing_roles.is_empty(),
+        "all roles should be covered after repair"
+    );
 }
 
 /// Helper that calls the internal execute_transfer to move a player between teams.
@@ -315,7 +356,9 @@ fn transfer_out_from_ai_team(
     // We simulate the transfer manually: move the player, then call repair_team.
     // The actual wiring in transfers.rs will do both atomically.
     // For the test, we manually move + repair to assert the seam's contract.
-    let player_was_transferred = game.players.iter_mut()
+    let player_was_transferred = game
+        .players
+        .iter_mut()
         .find(|p| p.id == player_id && p.team_id.as_deref() == Some(from_team))
         .map(|p| {
             p.team_id = Some(to_team.to_string());
@@ -330,9 +373,8 @@ fn transfer_out_from_ai_team(
     }
     // The production wiring in transfers.rs will call repair_team after
     // execute_transfer for non-player selling teams. We simulate that here.
-    olm_core::roster_stability::repair_team(
-        game, from_team, RosterStabilityReason::TransferOut,
-    ).map_err(|e| format!("repair failed: {e}"))?;
+    olm_core::roster_stability::repair_team(game, from_team, RosterStabilityReason::TransferOut)
+        .map_err(|e| format!("repair failed: {e}"))?;
     Ok(())
 }
 
@@ -342,11 +384,21 @@ fn ai_team_contract_release_repairs_roster() {
     // This works through process_contract_expiries which calls repair_team.
     let players = vec![
         player("top", Some("ai-team"), LolRole::Top, Some("2028-06-30")),
-        player("jungle", Some("ai-team"), LolRole::Jungle, Some("2028-06-30")),
+        player(
+            "jungle",
+            Some("ai-team"),
+            LolRole::Jungle,
+            Some("2028-06-30"),
+        ),
         player("mid", Some("ai-team"), LolRole::Mid, Some("2028-06-30")),
         player("adc", Some("ai-team"), LolRole::Adc, Some("2028-06-30")),
         // Support contract expires today
-        player("exp-support", Some("ai-team"), LolRole::Support, Some("2026-07-31")),
+        player(
+            "exp-support",
+            Some("ai-team"),
+            LolRole::Support,
+            Some("2026-07-31"),
+        ),
     ];
     let mut game = game_with_ai_team(players, vec!["top", "jungle", "mid", "adc", "exp-support"]);
 
@@ -371,7 +423,12 @@ fn season_transition_repair_replaces_depleted_rosters() {
     // by repair_league with SeasonTransition reason.
     let players = vec![
         player("top", Some("ai-team"), LolRole::Top, Some("2028-06-30")),
-        player("jungle", Some("ai-team"), LolRole::Jungle, Some("2028-06-30")),
+        player(
+            "jungle",
+            Some("ai-team"),
+            LolRole::Jungle,
+            Some("2028-06-30"),
+        ),
         player("mid", Some("ai-team"), LolRole::Mid, Some("2028-06-30")),
         player("adc", Some("ai-team"), LolRole::Adc, Some("2028-06-30")),
     ];
@@ -386,10 +443,13 @@ fn season_transition_repair_replaces_depleted_rosters() {
     let reports = olm_core::roster_stability::repair_league(
         &mut game,
         RosterStabilityReason::SeasonTransition,
-    ).expect("repair_league should succeed");
+    )
+    .expect("repair_league should succeed");
 
     // At least one report for ai-team
-    let ai_report = reports.iter().find(|r| r.team_id == "ai-team")
+    let ai_report = reports
+        .iter()
+        .find(|r| r.team_id == "ai-team")
         .expect("ai-team should have a repair report");
 
     // Team should now be eligible
@@ -398,13 +458,18 @@ fn season_transition_repair_replaces_depleted_rosters() {
     assert!(after.match_eligible);
 
     // Report should have at least one roster-changing action
-    let has_roster_action = ai_report.actions.iter().any(|a| matches!(
-        a,
-        RepairAction::GeneratedReplacement { .. }
-            | RepairAction::AssignedFreeAgent { .. }
-            | RepairAction::RenewedContract { .. }
-    ));
-    assert!(has_roster_action, "season transition repair should produce a roster action");
+    let has_roster_action = ai_report.actions.iter().any(|a| {
+        matches!(
+            a,
+            RepairAction::GeneratedReplacement { .. }
+                | RepairAction::AssignedFreeAgent { .. }
+                | RepairAction::RenewedContract { .. }
+        )
+    });
+    assert!(
+        has_roster_action,
+        "season transition repair should produce a roster action"
+    );
 }
 
 #[test]
@@ -416,8 +481,11 @@ fn repair_league_contract_expired_restores_all_ai_teams() {
 
     let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
     let mut manager = Manager::new(
-        "manager-1".to_string(), "Jane".to_string(), "Doe".to_string(),
-        "1980-01-01".to_string(), "Spain".to_string(),
+        "manager-1".to_string(),
+        "Jane".to_string(),
+        "Doe".to_string(),
+        "1980-01-01".to_string(),
+        "Spain".to_string(),
     );
     manager.hire("user-team".to_string());
 
@@ -429,8 +497,16 @@ fn repair_league_contract_expired_restores_all_ai_teams() {
         clock,
         manager,
         vec![
-            team("ai-team", None, vec!["exp-top", "exp-jungle", "exp-mid", "exp-adc", "exp-support"]),
-            team("other-ai", None, vec!["exp-top", "exp-jungle", "exp-mid", "exp-adc", "exp-support"]),
+            team(
+                "ai-team",
+                None,
+                vec!["exp-top", "exp-jungle", "exp-mid", "exp-adc", "exp-support"],
+            ),
+            team(
+                "other-ai",
+                None,
+                vec!["exp-top", "exp-jungle", "exp-mid", "exp-adc", "exp-support"],
+            ),
         ],
         all_players,
         vec![],
@@ -439,7 +515,9 @@ fn repair_league_contract_expired_restores_all_ai_teams() {
     game.leagues = vec![league_with_team("ai-team")];
     game.user_competition_id = Some("competition-1".to_string());
     // Add other-ai to the league's standings so it's also schedulable
-    game.leagues[0].standings.push(StandingEntry::new("other-ai".to_string()));
+    game.leagues[0]
+        .standings
+        .push(StandingEntry::new("other-ai".to_string()));
     // Add a fixture for other-ai
     game.leagues[0].fixtures.push(Fixture {
         id: "fixture-2".to_string(),
@@ -457,7 +535,8 @@ fn repair_league_contract_expired_restores_all_ai_teams() {
     let reports = olm_core::roster_stability::repair_league(
         &mut game,
         RosterStabilityReason::ContractExpired,
-    ).expect("repair_league should succeed");
+    )
+    .expect("repair_league should succeed");
 
     // Both teams should have been repaired
     assert!(

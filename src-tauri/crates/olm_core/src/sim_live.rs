@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, VecDeque};
 use std::sync::OnceLock;
@@ -31,8 +31,8 @@ use layout::{
     LANE_PATH_TOP_BLUE, ROLE_SEEDS, STRUCTURE_LAYOUT,
 };
 use objectives::{
-    process_dragon_capture, resolve_neutral_capture_decision, sync_objectives_from_neutral_timers,
-    tick_neutral_timers, NeutralCaptureKind,
+    NeutralCaptureKind, process_dragon_capture, resolve_neutral_capture_decision,
+    sync_objectives_from_neutral_timers, tick_neutral_timers,
 };
 pub use runtime::{
     dispose, init, init_session_from_request, reset, run_to_completion, skip_to_end, tick,
@@ -2108,11 +2108,7 @@ fn normalized_lane(lane: &str) -> &'static str {
 }
 
 fn normalized_team(team: &str) -> &'static str {
-    if team == "red" {
-        "red"
-    } else {
-        "blue"
-    }
+    if team == "red" { "red" } else { "blue" }
 }
 
 fn lane_path_blue(lane: &str) -> &'static [Vec2] {
@@ -6376,8 +6372,3 @@ mod macro_ai_tests;
 
 #[cfg(test)]
 mod runtime_tests;
-
-
-
-
-

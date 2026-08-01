@@ -1,7 +1,9 @@
-use crate::game::Game;
 use crate::domain::stats::LolRole;
-use crate::domain::team::{DraftStrategy, ScrimFocus, TrainingFocus, TrainingIntensity, TrainingSchedule};
+use crate::domain::team::{
+    DraftStrategy, ScrimFocus, TrainingFocus, TrainingIntensity, TrainingSchedule,
+};
 use crate::domain::transfer_history::TransferHistoryEntry;
+use crate::game::Game;
 
 // ── Training ────────────────────────────────────────────────
 
@@ -28,7 +30,8 @@ pub fn set_training_schedule(game: &mut Game, team_id: &str, schedule: &str) {
 
 pub fn set_training_groups(game: &mut Game, team_id: &str, groups: &[serde_json::Value]) {
     use crate::domain::team::TrainingGroup;
-    let parsed: Vec<TrainingGroup> = groups.iter()
+    let parsed: Vec<TrainingGroup> = groups
+        .iter()
         .filter_map(|g| serde_json::from_value(g.clone()).ok())
         .collect();
     if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
@@ -142,7 +145,11 @@ pub fn hire_staff(game: &mut Game, staff_id: &str, team_id: &str) {
 }
 
 pub fn release_staff(game: &mut Game, staff_id: &str, team_id: &str) {
-    if let Some(s) = game.staff.iter_mut().find(|s| s.id == staff_id && s.team_id.as_deref() == Some(team_id)) {
+    if let Some(s) = game
+        .staff
+        .iter_mut()
+        .find(|s| s.id == staff_id && s.team_id.as_deref() == Some(team_id))
+    {
         s.team_id = Some("fa".to_string());
     }
 }
@@ -203,18 +210,35 @@ pub fn demote_academy_player(game: &mut Game, player_id: &str, academy_team_id: 
 
 pub fn bootstrap_academy_pool(game: &mut Game) {
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
-    crate::game_setup::bootstrap_example_academy_pool_from_example(&mut game.teams, &mut game.players, &date);
+    crate::game_setup::bootstrap_example_academy_pool_from_example(
+        &mut game.teams,
+        &mut game.players,
+        &date,
+    );
     crate::game_setup::remove_free_agents_shadowed_by_academy(&mut game.players, &game.teams);
 }
 
 // ── Manager ──────────────────────────────────────────────────
 
-pub fn update_manager_profile(game: &mut Game, first_name: Option<&str>, last_name: Option<&str>,
-                               nickname: Option<&str>, nationality: Option<&str>) {
-    if let Some(v) = first_name { game.manager.first_name = v.to_string(); }
-    if let Some(v) = last_name { game.manager.last_name = v.to_string(); }
-    if let Some(v) = nickname { game.manager.nickname = v.to_string(); }
-    if let Some(v) = nationality { game.manager.nationality = v.to_string(); }
+pub fn update_manager_profile(
+    game: &mut Game,
+    first_name: Option<&str>,
+    last_name: Option<&str>,
+    nickname: Option<&str>,
+    nationality: Option<&str>,
+) {
+    if let Some(v) = first_name {
+        game.manager.first_name = v.to_string();
+    }
+    if let Some(v) = last_name {
+        game.manager.last_name = v.to_string();
+    }
+    if let Some(v) = nickname {
+        game.manager.nickname = v.to_string();
+    }
+    if let Some(v) = nationality {
+        game.manager.nationality = v.to_string();
+    }
 }
 
 pub fn reroll_player_role(game: &mut Game, player_id: &str) {
@@ -226,7 +250,12 @@ pub fn reroll_player_role(game: &mut Game, player_id: &str) {
 // ── Player ───────────────────────────────────────────────────
 
 pub fn set_player_champion_training_target(game: &mut Game, player_id: &str, champion_key: &str) {
-    if let Err(e) = crate::champions::set_player_training_target(game, player_id, 0, Some(champion_key.to_string())) {
+    if let Err(e) = crate::champions::set_player_training_target(
+        game,
+        player_id,
+        0,
+        Some(champion_key.to_string()),
+    ) {
         log::warn!("set_player_champion_training_target: {e}");
     }
 }
@@ -242,4 +271,3 @@ pub fn delegate_champion_training(game: &mut Game) {
 pub fn create_social_post(_game: &mut Game, _text: &str) {
     // Placeholder - creates a social post
 }
-

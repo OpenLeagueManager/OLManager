@@ -210,4 +210,3 @@ pub struct TeamMatchStatsRecord {
     pub damage_dealt: u32,
     pub objectives: u16,
 }
-

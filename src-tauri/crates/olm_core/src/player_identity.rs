@@ -1,5 +1,5 @@
-use crate::game::Game;
 use crate::domain::player::{LolRole, Player};
+use crate::game::Game;
 
 /// Upgrades player identities to use LolRole positions.
 /// Now that all players already use LolRole, this is a no-op.
@@ -19,4 +19,3 @@ pub fn upgrade_player_identity(_player: &mut Player, _assigned_slot: Option<&Lol
 fn needs_identity_upgrade(_player: &Player) -> bool {
     false
 }
-

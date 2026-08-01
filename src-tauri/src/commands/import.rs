@@ -761,8 +761,7 @@ fn validate_import_summary(summary: &ImportSummary) -> Result<(), String> {
     }
     if summary.player_count == 0 || summary.team_count == 0 {
         return Err(
-            "El paquete no parece una exportacion valida: faltan jugadores o equipos."
-                .to_string(),
+            "El paquete no parece una exportacion valida: faltan jugadores o equipos.".to_string(),
         );
     }
     Ok(())
@@ -1452,8 +1451,8 @@ fn walk_files(root: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use flate2::Compression;
     use flate2::write::GzEncoder;
+    use flate2::Compression;
     use std::io::Write;
 
     #[test]

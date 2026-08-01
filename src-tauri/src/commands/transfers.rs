@@ -1,6 +1,6 @@
+use log::info;
 use olm_core::domain::negotiation::NegotiationFeedback;
 use olm_core::domain::transfer_history::TransferHistoryEntry;
-use log::info;
 use tauri::State;
 
 use olm_core::game::Game;
@@ -85,7 +85,13 @@ pub fn make_transfer_bid(
     destination: Option<TransferDestination>,
     included_player_ids: Vec<String>,
 ) -> Result<TransferNegotiationCommandResponse, String> {
-    make_transfer_bid_internal(&state, &player_id, fee, destination.unwrap_or_default(), &included_player_ids)
+    make_transfer_bid_internal(
+        &state,
+        &player_id,
+        fee,
+        destination.unwrap_or_default(),
+        &included_player_ids,
+    )
 }
 
 fn make_transfer_bid_internal(
@@ -97,13 +103,21 @@ fn make_transfer_bid_internal(
 ) -> Result<TransferNegotiationCommandResponse, String> {
     info!(
         "[cmd] make_transfer_bid: player_id={}, fee={}, included={}",
-        player_id, fee, included_player_ids.len()
+        player_id,
+        fee,
+        included_player_ids.len()
     );
     let mut game = state
         .get_game(|g| g.clone())
         .ok_or("No active game session".to_string())?;
 
-    let result = olm_core::transfers::make_transfer_bid(&mut game, player_id, fee, destination, included_player_ids)?;
+    let result = olm_core::transfers::make_transfer_bid(
+        &mut game,
+        player_id,
+        fee,
+        destination,
+        included_player_ids,
+    )?;
     state.set_game(game.clone());
 
     Ok(map_transfer_negotiation_response(result, game))
@@ -186,7 +200,13 @@ pub fn counter_offer(
     requested_fee: u64,
     included_player_ids: Vec<String>,
 ) -> Result<TransferNegotiationCommandResponse, String> {
-    counter_offer_internal(&state, &player_id, &offer_id, requested_fee, &included_player_ids)
+    counter_offer_internal(
+        &state,
+        &player_id,
+        &offer_id,
+        requested_fee,
+        &included_player_ids,
+    )
 }
 
 fn counter_offer_internal(
@@ -198,13 +218,22 @@ fn counter_offer_internal(
 ) -> Result<TransferNegotiationCommandResponse, String> {
     info!(
         "[cmd] counter_offer: player_id={}, offer_id={}, requested_fee={}, included={}",
-        player_id, offer_id, requested_fee, included_player_ids.len()
+        player_id,
+        offer_id,
+        requested_fee,
+        included_player_ids.len()
     );
     let mut game = state
         .get_game(|g| g.clone())
         .ok_or("No active game session".to_string())?;
 
-    let result = olm_core::transfers::counter_offer(&mut game, player_id, offer_id, requested_fee, included_player_ids)?;
+    let result = olm_core::transfers::counter_offer(
+        &mut game,
+        player_id,
+        offer_id,
+        requested_fee,
+        included_player_ids,
+    )?;
     state.set_game(game.clone());
 
     Ok(map_transfer_negotiation_response(result, game))
@@ -249,7 +278,13 @@ fn negotiate_player_wage_internal(
         .get_game(|g| g.clone())
         .ok_or("No active game session".to_string())?;
 
-    let result = olm_core::transfers::negotiate_player_wage(&mut game, player_id, offer_id, annual_wage, contract_years)?;
+    let result = olm_core::transfers::negotiate_player_wage(
+        &mut game,
+        player_id,
+        offer_id,
+        annual_wage,
+        contract_years,
+    )?;
     state.set_game(game.clone());
 
     Ok(WageNegotiationCommandResponse {
@@ -314,11 +349,14 @@ mod tests {
         toggle_loan_list_internal, toggle_transfer_list_internal,
     };
     use chrono::{TimeZone, Utc};
+    use olm_core::clock::GameClock;
     use olm_core::domain::manager::Manager;
-    use olm_core::domain::player::{Player, PlayerAttributes, TransferOffer, TransferOfferStatus, LolRole, WageNegotiationStatus};
+    use olm_core::domain::player::{
+        LolRole, Player, PlayerAttributes, TransferOffer, TransferOfferStatus,
+        WageNegotiationStatus,
+    };
     use olm_core::domain::season::TransferWindowStatus;
     use olm_core::domain::team::Team;
-    use olm_core::clock::GameClock;
     use olm_core::game::Game;
     use olm_core::state::StateManager;
     use olm_core::transfers::{TransferDestination, TransferNegotiationDecision};
@@ -510,8 +548,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game());
 
-        let response =
-            counter_offer_internal(&state, "player-1", "offer-1", 1_050_000, &[]).expect("response");
+        let response = counter_offer_internal(&state, "player-1", "offer-1", 1_050_000, &[])
+            .expect("response");
 
         assert_eq!(response.decision, TransferNegotiationDecision::Accepted);
         assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-2"));
@@ -537,9 +575,14 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_bid_game());
 
-        let response =
-            make_transfer_bid_internal(&state, "player-2", 1_050_000, TransferDestination::Main, &[])
-                .expect("response");
+        let response = make_transfer_bid_internal(
+            &state,
+            "player-2",
+            1_050_000,
+            TransferDestination::Main,
+            &[],
+        )
+        .expect("response");
 
         assert_eq!(response.decision, TransferNegotiationDecision::Accepted);
         assert!(!response.is_terminal);
@@ -549,7 +592,9 @@ mod tests {
             TransferOfferStatus::Accepted
         );
         assert_eq!(
-            response.game.players[0].transfer_offers[0].destination_team_id.as_deref(),
+            response.game.players[0].transfer_offers[0]
+                .destination_team_id
+                .as_deref(),
             Some("team-1")
         );
 
@@ -561,7 +606,9 @@ mod tests {
             .expect("stored player");
         assert_eq!(stored_player.team_id.as_deref(), Some("team-2"));
         assert_eq!(
-            stored_player.transfer_offers[0].destination_team_id.as_deref(),
+            stored_player.transfer_offers[0]
+                .destination_team_id
+                .as_deref(),
             Some("team-1")
         );
     }
@@ -612,7 +659,9 @@ mod tests {
         assert_eq!(second.feedback.round, 2);
         assert_eq!(second.game.players[0].team_id.as_deref(), Some("team-2"));
         assert_eq!(
-            second.game.players[0].transfer_offers[0].destination_team_id.as_deref(),
+            second.game.players[0].transfer_offers[0]
+                .destination_team_id
+                .as_deref(),
             Some("team-1")
         );
     }
@@ -622,9 +671,14 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_free_agent_bid_game());
 
-        let response =
-            make_transfer_bid_internal(&state, "player-fa-1", 450_000, TransferDestination::Main, &[])
-                .expect("response");
+        let response = make_transfer_bid_internal(
+            &state,
+            "player-fa-1",
+            450_000,
+            TransferDestination::Main,
+            &[],
+        )
+        .expect("response");
 
         assert_eq!(response.decision, TransferNegotiationDecision::Accepted);
         assert!(!response.is_terminal);
@@ -745,4 +799,3 @@ mod tests {
         assert!(!response.projection.exceeds_finance);
     }
 }
-

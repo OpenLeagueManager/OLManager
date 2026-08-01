@@ -26,5 +26,3 @@ pub fn ai_decide<R: Rng>(
 ) -> Vec<MatchCommand> {
     Vec::new()
 }
-
-

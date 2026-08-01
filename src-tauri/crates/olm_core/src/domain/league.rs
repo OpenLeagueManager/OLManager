@@ -191,7 +191,13 @@ impl Fixture {
 }
 
 impl League {
-    pub fn new(id: String, name: String, season: u32, team_ids: &[String], competition_id: Option<String>) -> Self {
+    pub fn new(
+        id: String,
+        name: String,
+        season: u32,
+        team_ids: &[String],
+        competition_id: Option<String>,
+    ) -> Self {
         let standings = team_ids
             .iter()
             .map(|tid| StandingEntry::new(tid.clone()))
@@ -274,7 +280,10 @@ mod tests {
 
         // Same date, same matchday, same teams — but different fixture_id
         // They must NOT be equal
-        assert_ne!(fix_a, fix_b, "fixtures with different IDs must not be equal");
+        assert_ne!(
+            fix_a, fix_b,
+            "fixtures with different IDs must not be equal"
+        );
         assert_ne!(fix_a.id, fix_b.id, "fixture IDs must be distinct");
     }
 
@@ -283,7 +292,13 @@ mod tests {
     #[test]
     fn test_result_isolation_by_fixture_id() {
         let team_ids = vec!["team-a".to_string(), "team-b".to_string()];
-        let mut league = League::new("test-league".into(), "Test League".into(), 2026, &team_ids, None);
+        let mut league = League::new(
+            "test-league".into(),
+            "Test League".into(),
+            2026,
+            &team_ids,
+            None,
+        );
 
         let fix_a = Fixture {
             id: "fix-001".to_string(),
@@ -326,17 +341,29 @@ mod tests {
         // Verify fix-002 is untouched
         let fix_b = league.fixtures.iter().find(|f| f.id == "fix-002").unwrap();
         assert_eq!(fix_b.status, FixtureStatus::Scheduled);
-        assert!(fix_b.result.is_none(), "result must NOT leak to other fixture");
+        assert!(
+            fix_b.result.is_none(),
+            "result must NOT leak to other fixture"
+        );
     }
 
     /// Verify that looking up a fixture by wrong fixture_id returns None.
     #[test]
     fn test_fixture_lookup_by_id_returns_none_for_missing() {
         let team_ids = vec!["team-a".to_string()];
-        let league = League::new("test-league".into(), "Test League".into(), 2026, &team_ids, None);
+        let league = League::new(
+            "test-league".into(),
+            "Test League".into(),
+            2026,
+            &team_ids,
+            None,
+        );
 
         let result = league.fixtures.iter().find(|f| f.id == "nonexistent-id");
-        assert!(result.is_none(), "lookup by wrong fixture_id must return None");
+        assert!(
+            result.is_none(),
+            "lookup by wrong fixture_id must return None"
+        );
     }
 
     /// Verify that two competitions with fixtures on the same date do not
@@ -390,6 +417,9 @@ mod tests {
         let b_result = league_b.fixtures[0].result.as_ref().unwrap();
         assert_eq!(a_result.home_wins, 2);
         assert_eq!(b_result.home_wins, 1);
-        assert_ne!(a_result, b_result, "cross-competition results must be independent");
+        assert_ne!(
+            a_result, b_result,
+            "cross-competition results must be independent"
+        );
     }
 }

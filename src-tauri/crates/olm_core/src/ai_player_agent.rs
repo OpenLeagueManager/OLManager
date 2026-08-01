@@ -191,11 +191,12 @@ fn loyalty_factor(player: &Player) -> f64 {
 
     let tenure_bonus = (team_career_count as f64 / 5.0).min(1.0);
 
-    let trait_bonus = if player
-        .traits
-        .iter()
-        .any(|t| matches!(t, PlayerTrait::TeamPlayer | PlayerTrait::Sentinel | PlayerTrait::IceCold))
-    {
+    let trait_bonus = if player.traits.iter().any(|t| {
+        matches!(
+            t,
+            PlayerTrait::TeamPlayer | PlayerTrait::Sentinel | PlayerTrait::IceCold
+        )
+    }) {
         0.2
     } else {
         0.0
@@ -378,10 +379,12 @@ pub fn process_ai_player_agents(game: &mut Game) {
         team_ids
             .iter()
             .filter_map(|team_id| {
-                game.teams
-                    .iter()
-                    .find(|t| t.id == *team_id)
-                    .map(|team| (team_id.clone(), derive_team_ambition_from_players(team, players)))
+                game.teams.iter().find(|t| t.id == *team_id).map(|team| {
+                    (
+                        team_id.clone(),
+                        derive_team_ambition_from_players(team, players),
+                    )
+                })
             })
             .collect()
     };
@@ -413,9 +416,7 @@ mod tests {
     use super::*;
     use crate::clock::GameClock;
     use crate::domain::manager::Manager;
-    use crate::domain::player::{
-        LolRole, Player, PlayerAttributes, PlayerMoraleCore,
-    };
+    use crate::domain::player::{LolRole, Player, PlayerAttributes, PlayerMoraleCore};
     use crate::domain::team::Team;
     use chrono::{TimeZone, Utc};
 
@@ -493,10 +494,7 @@ mod tests {
     }
 
     /// Build a minimal Game with one AI team and one player.
-    fn make_game_with_single_ai_team(
-        team: Team,
-        players: Vec<Player>,
-    ) -> Game {
+    fn make_game_with_single_ai_team(team: Team, players: Vec<Player>) -> Game {
         let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 6, 15, 12, 0, 0).unwrap());
         let manager = Manager::new(
             "mgr1".to_string(),
@@ -523,11 +521,11 @@ mod tests {
             "Happy",
             "t1",
             LolRole::Mid,
-            85,     // lol_ovr
-            85,     // morale > 70
-            70,     // manager_trust > 60
-            80_000, // wage
-            100_000, // market_value → wage / mv = 0.8 → WAGE_FAIR_RATIO
+            85,                 // lol_ovr
+            85,                 // morale > 70
+            70,                 // manager_trust > 60
+            80_000,             // wage
+            100_000,            // market_value → wage / mv = 0.8 → WAGE_FAIR_RATIO
             Some("2028-06-15"), // long contract
             vec![PlayerTrait::TeamPlayer],
         );
@@ -557,11 +555,11 @@ mod tests {
             "Unhappy",
             "t2",
             LolRole::Top,
-            55,     // low OVR → low ambition
-            20,     // morale < 30
-            15,     // manager_trust < 25
-            20_000, // wage
-            80_000, // market_value → wage / mv = 0.25 < 0.7 → underpaid
+            55,                 // low OVR → low ambition
+            20,                 // morale < 30
+            15,                 // manager_trust < 25
+            20_000,             // wage
+            80_000,             // market_value → wage / mv = 0.25 < 0.7 → underpaid
             Some("2026-09-15"), // short contract
             vec![],
         );
@@ -589,21 +587,39 @@ mod tests {
 
         // Star player: high OVR attrs but team's avg is pulled down by filler
         let star = make_player(
-            "p3", "Star", "t3", LolRole::Mid,
-            90, 50, 40, 50_000, 200_000,
+            "p3",
+            "Star",
+            "t3",
+            LolRole::Mid,
+            90,
+            50,
+            40,
+            50_000,
+            200_000,
             Some("2027-06-15"),
             vec![PlayerTrait::HyperCarry],
         );
 
         // Filler players with low attrs to bring avg below 68
         let filler_attrs = PlayerAttributes {
-            mechanics: 40, laning: 40, teamfighting: 40,
-            macro_play: 40, consistency: 40, shotcalling: 40,
-            champion_pool: 40, discipline: 40, mental_resilience: 40,
+            mechanics: 40,
+            laning: 40,
+            teamfighting: 40,
+            macro_play: 40,
+            consistency: 40,
+            shotcalling: 40,
+            champion_pool: 40,
+            discipline: 40,
+            mental_resilience: 40,
         };
         let mut filler1 = Player::new(
-            "f1".to_string(), "Filler1".to_string(), "Full Filler1".to_string(),
-            "2000-01-01".to_string(), "GB".to_string(), LolRole::Top, filler_attrs.clone(),
+            "f1".to_string(),
+            "Filler1".to_string(),
+            "Full Filler1".to_string(),
+            "2000-01-01".to_string(),
+            "GB".to_string(),
+            LolRole::Top,
+            filler_attrs.clone(),
         );
         filler1.team_id = Some("t3".to_string());
         let mut filler2 = filler1.clone();
@@ -651,8 +667,11 @@ mod tests {
             "Loyal",
             "t4",
             LolRole::Support,
-            70, 50, 50,
-            50_000, 100_000,
+            70,
+            50,
+            50,
+            50_000,
+            100_000,
             Some("2027-06-15"),
             vec![],
         );
@@ -688,8 +707,11 @@ mod tests {
             "Sentinel",
             "t5",
             LolRole::Top,
-            70, 50, 50,
-            50_000, 100_000,
+            70,
+            50,
+            50,
+            50_000,
+            100_000,
             Some("2027-06-15"),
             vec![PlayerTrait::Sentinel],
         );
@@ -715,11 +737,11 @@ mod tests {
             "Leaver",
             "t1",
             LolRole::Mid,
-            60,     // lol_ovr
-            25,     // morale
-            20,     // manager_trust
-            20_000, // wage
-            100_000, // market_value → wage/mv = 0.2 → underpaid
+            60,                 // lol_ovr
+            25,                 // morale
+            20,                 // manager_trust
+            20_000,             // wage
+            100_000,            // market_value → wage/mv = 0.2 → underpaid
             Some("2026-09-01"), // < 6 months from test_date
             vec![],
         );
@@ -748,23 +770,41 @@ mod tests {
 
         // Use high attrs so natural_ovr >= 78 → High ambition
         let high_attrs = PlayerAttributes {
-            mechanics: 90, laning: 90, teamfighting: 90,
-            macro_play: 90, consistency: 90, shotcalling: 90,
-            champion_pool: 90, discipline: 90, mental_resilience: 90,
+            mechanics: 90,
+            laning: 90,
+            teamfighting: 90,
+            macro_play: 90,
+            consistency: 90,
+            shotcalling: 90,
+            champion_pool: 90,
+            discipline: 90,
+            mental_resilience: 90,
         };
 
         fn make_high_ovr_player(
-            id: &str, team_id: &str, role: LolRole,
-            morale: u8, trust: u8, attrs: PlayerAttributes,
+            id: &str,
+            team_id: &str,
+            role: LolRole,
+            morale: u8,
+            trust: u8,
+            attrs: PlayerAttributes,
         ) -> Player {
             let mut p = Player::new(
-                id.to_string(), format!("Player {id}"), format!("Full {id}"),
-                "2000-01-01".to_string(), "GB".to_string(), role, attrs,
+                id.to_string(),
+                format!("Player {id}"),
+                format!("Full {id}"),
+                "2000-01-01".to_string(),
+                "GB".to_string(),
+                role,
+                attrs,
             );
             p.team_id = Some(team_id.to_string());
             p.lol_ovr = 90;
             p.morale = morale;
-            p.morale_core = PlayerMoraleCore { manager_trust: trust, ..PlayerMoraleCore::default() };
+            p.morale_core = PlayerMoraleCore {
+                manager_trust: trust,
+                ..PlayerMoraleCore::default()
+            };
             p.wage = 80_000;
             p.market_value = 100_000;
             p.contract_end = Some("2026-09-01".to_string());
@@ -774,7 +814,8 @@ mod tests {
         let players = vec![
             // p1: very unhappy (morale 20, trust 15) + underpaid (20K/100K) → satisfaction << 0.35
             {
-                let mut p = make_high_ovr_player("p1", "t1", LolRole::Top, 20, 15, high_attrs.clone());
+                let mut p =
+                    make_high_ovr_player("p1", "t1", LolRole::Top, 20, 15, high_attrs.clone());
                 p.wage = 20_000; // very underpaid
                 p.traits = vec![PlayerTrait::HyperCarry];
                 p
@@ -823,8 +864,15 @@ mod tests {
         // transfer_listed or renewal_state, never team_id or other roster fields.
         let _team = make_team("t1", "Test Team", 50);
         let player = make_player(
-            "p1", "Test", "t1", LolRole::Mid,
-            70, 50, 50, 50_000, 100_000,
+            "p1",
+            "Test",
+            "t1",
+            LolRole::Mid,
+            70,
+            50,
+            50,
+            50_000,
+            100_000,
             Some("2026-09-01"),
             vec![],
         );
@@ -836,10 +884,19 @@ mod tests {
 
         // Apply each decision type and verify only flags changed
         route_decision(&PlayerAgentDecision::RequestTransfer, &mut test_player);
-        assert!(test_player.transfer_listed, "transfer_listed should be true");
-        assert_eq!(test_player.team_id, original_team_id, "team_id must not change");
+        assert!(
+            test_player.transfer_listed,
+            "transfer_listed should be true"
+        );
+        assert_eq!(
+            test_player.team_id, original_team_id,
+            "team_id must not change"
+        );
         assert_eq!(test_player.wage, original_wage, "wage must not change");
-        assert_eq!(test_player.lol_ovr, original_lol_ovr, "lol_ovr must not change");
+        assert_eq!(
+            test_player.lol_ovr, original_lol_ovr,
+            "lol_ovr must not change"
+        );
 
         // Reset and test renewal
         let mut test_player2 = player.clone();
@@ -849,7 +906,10 @@ mod tests {
             test_player2.morale_core.renewal_state.is_some(),
             "renewal_state should be set"
         );
-        assert_eq!(test_player2.team_id, original_team_id2, "team_id must not change");
+        assert_eq!(
+            test_player2.team_id, original_team_id2,
+            "team_id must not change"
+        );
 
         // Reset and test silent
         let mut test_player3 = player.clone();
@@ -858,7 +918,10 @@ mod tests {
             !test_player3.transfer_listed,
             "transfer_listed should remain false"
         );
-        assert_eq!(test_player3.team_id, original_team_id2, "team_id must not change");
+        assert_eq!(
+            test_player3.team_id, original_team_id2,
+            "team_id must not change"
+        );
     }
 
     #[test]
@@ -866,8 +929,15 @@ mod tests {
         // Happy player → Silent
         let team = make_team("t1", "Great Team", 80);
         let player = make_player(
-            "p1", "Happy", "t1", LolRole::Mid,
-            90, 90, 80, 100_000, 110_000,
+            "p1",
+            "Happy",
+            "t1",
+            LolRole::Mid,
+            90,
+            90,
+            80,
+            100_000,
+            110_000,
             Some("2028-06-15"),
             vec![PlayerTrait::TeamPlayer],
         );
@@ -894,11 +964,11 @@ mod tests {
             "Mid",
             "t1",
             LolRole::Mid,
-            70,     // lol_ovr
-            60,     // morale (mid)
-            55,     // manager_trust (mid)
-            50_000, // wage
-            60_000, // market_value → wage/mv = 0.83 → fairly paid
+            70,                 // lol_ovr
+            60,                 // morale (mid)
+            55,                 // manager_trust (mid)
+            50_000,             // wage
+            60_000,             // market_value → wage/mv = 0.83 → fairly paid
             Some("2026-09-01"), // < 6 months
             vec![],
         );
@@ -959,16 +1029,30 @@ mod tests {
 
         // Unhappy player who should request transfer
         let unhappy = make_player(
-            "p1", "Unhappy", "ai_team", LolRole::Mid,
-            55, 20, 15, 20_000, 100_000,
+            "p1",
+            "Unhappy",
+            "ai_team",
+            LolRole::Mid,
+            55,
+            20,
+            15,
+            20_000,
+            100_000,
             Some("2026-09-01"),
             vec![],
         );
 
         // Happy player
         let happy = make_player(
-            "p2", "Happy", "ai_team", LolRole::Top,
-            85, 90, 80, 100_000, 100_000,
+            "p2",
+            "Happy",
+            "ai_team",
+            LolRole::Top,
+            85,
+            90,
+            80,
+            100_000,
+            100_000,
             Some("2028-06-15"),
             vec![PlayerTrait::TeamPlayer],
         );

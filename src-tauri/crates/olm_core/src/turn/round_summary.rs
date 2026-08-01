@@ -1,6 +1,6 @@
-use crate::game::Game;
-use crate::player_rating::{effective_rating_for_assignment, position_slots, natural_ovr};
 use crate::domain::league::{Fixture, FixtureStatus, StandingEntry};
+use crate::game::Game;
+use crate::player_rating::{effective_rating_for_assignment, natural_ovr, position_slots};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -434,4 +434,3 @@ fn team_name(game: &Game, team_id: &str) -> String {
         .map(|team| team.name.clone())
         .unwrap_or_else(|| team_id.to_string())
 }
-
