@@ -5,6 +5,8 @@ import {
   calculateStaffRevealBudget,
   selectRivalMasteryKnowledgeForPlayer,
   selectStaffRevealEntries,
+  isCurrentDraftEvaluationRequest,
+  canUserConfirmDraftChoice,
 } from "@/ui-v2/_legacy/components/match/ChampionDraft";
 import type { ScrimReportData } from "@/store/gameStore";
 
@@ -41,6 +43,15 @@ function scrimReport(overrides: Partial<ScrimReportData>): ScrimReportData {
 }
 
 describe("ChampionDraft rival mastery knowledge", () => {
+  it("rejects an evaluation response that belongs to a previous draft turn", () => {
+    expect(isCurrentDraftEvaluationRequest(1, 2, "first-turn", "second-turn")).toBe(false);
+    expect(isCurrentDraftEvaluationRequest(2, 2, "current-turn", "current-turn")).toBe(true);
+  });
+
+  it("allows a user to confirm a selected pick without a recommendation", () => {
+    expect(canUserConfirmDraftChoice("off-meta-choice", true)).toBe(true);
+  });
+
   it("caps staff reveal budget from 1 to 5 picks based only on meta discovery", () => {
     expect(calculateStaffRevealBudget(0.9)).toBe(1);
     expect(calculateStaffRevealBudget(0.975)).toBe(2);

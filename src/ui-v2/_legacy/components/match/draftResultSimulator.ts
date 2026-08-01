@@ -98,6 +98,21 @@ export interface DraftMatchResult {
   };
 }
 
+export interface DraftPickEvaluation {
+  champion_id: string;
+  meta_power: number;
+  mastery: number;
+  skill_fit: number;
+  execution_risk: number;
+  total: number;
+  engine_modifier: number;
+}
+
+export interface DraftEvaluationsBySide {
+  blue: DraftPickEvaluation[];
+  red: DraftPickEvaluation[];
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -444,12 +459,13 @@ export function simulateDraftMatchResult(params: {
   snapshot: MatchSnapshot;
   gameState: GameStateData;
   draft: ChampionDraftResultPayload;
+  draftEvaluations?: DraftEvaluationsBySide;
   seedSalt?: string;
 }): DraftMatchResult {
-  const { snapshot, gameState, draft, seedSalt = "" } = params;
+  const { snapshot, gameState, draft, draftEvaluations, seedSalt = "" } = params;
 
   const seed = hashText(
-    `${snapshot.home_team.name}|${snapshot.away_team.name}|${draft.history.join("|")}|${draft.blue.score.total}|${draft.red.score.total}|${seedSalt}`,
+    `${snapshot.home_team.name}|${snapshot.away_team.name}|${draft.history.join("|")}|${draftEvaluations?.blue.map((evaluation) => evaluation.total).join("|") ?? ""}|${draftEvaluations?.red.map((evaluation) => evaluation.total).join("|") ?? ""}|${seedSalt}`,
   );
   const rand = mulberry32(seed);
 
@@ -477,8 +493,10 @@ export function simulateDraftMatchResult(params: {
   const blueCondition = teamCondition(gameState, blueData.players);
   const redCondition = teamCondition(gameState, redData.players);
 
-  const blueDraftStrength = clamp(50 + draft.blue.score.total * 2.5, 0, 100);
-  const redDraftStrength = clamp(50 + draft.red.score.total * 2.5, 0, 100);
+  // Rust's total is the draft-policy contribution. Morale, condition, and tactics
+  // remain independent inputs below rather than being folded into this score.
+  const blueDraftStrength = average(draftEvaluations?.blue.map((evaluation) => evaluation.total) ?? [50]);
+  const redDraftStrength = average(draftEvaluations?.red.map((evaluation) => evaluation.total) ?? [50]);
 
   const bluePower =
     blueOverall * 0.35 +
@@ -972,6 +990,5 @@ export function simulateDraftMatchResult(params: {
     },
   };
 }
-
 
 

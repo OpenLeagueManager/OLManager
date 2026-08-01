@@ -1,4 +1,5 @@
 use crate::domain::player::{LolRole, PlayerAttributes};
+use crate::game::Game;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -222,6 +223,64 @@ pub struct PickEvaluation {
     pub engine_modifier: f64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftPickInput {
+    pub player_id: String,
+    pub champion_id: String,
+    pub effective_role: LolRole,
+}
+
+fn meta_power_for(game: &Game, champion_id: &str, role: LolRole) -> u8 {
+    game.champion_patch
+        .hidden_meta
+        .iter()
+        .find(|entry| {
+            entry.champion_id.eq_ignore_ascii_case(champion_id)
+                && entry.role.eq_ignore_ascii_case(&format!("{role:?}"))
+        })
+        .map(|entry| match entry.tier.to_ascii_uppercase().as_str() {
+            "S" => 90,
+            "A" => 75,
+            "B" => 60,
+            "C" => 45,
+            "D" => 30,
+            _ => 60,
+        })
+        .unwrap_or(60)
+}
+
+pub fn evaluate_draft_picks(
+    game: &Game,
+    picks: &[DraftPickInput],
+) -> Result<Vec<PickEvaluation>, String> {
+    picks
+        .iter()
+        .map(|pick| {
+            let player = game
+                .players
+                .iter()
+                .find(|player| player.id == pick.player_id)
+                .ok_or_else(|| format!("Player not found: {}", pick.player_id))?;
+            let mastery = game
+                .champion_masteries
+                .iter()
+                .find(|entry| {
+                    entry.player_id == player.id
+                        && entry.champion_id.eq_ignore_ascii_case(&pick.champion_id)
+                })
+                .map(|entry| entry.mastery);
+            let profile = ChampionProfile {
+                champion_id: pick.champion_id.clone(),
+                role: pick.effective_role,
+                meta_power: meta_power_for(game, &pick.champion_id, pick.effective_role),
+                demands: SkillDemandProfile::for_champion(&pick.champion_id, pick.effective_role),
+            };
+            Ok(evaluate_pick(&player.attributes, mastery, &profile))
+        })
+        .collect()
+}
+
 pub fn evaluate_pick(
     attrs: &PlayerAttributes,
     mastery: Option<u8>,
@@ -285,6 +344,12 @@ pub fn select_pick(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::champions::{ChampionMasteryEntry, ChampionMetaEntry};
+    use crate::clock::GameClock;
+    use crate::domain::manager::Manager;
+    use crate::domain::player::Player;
+    use crate::domain::team::Team;
+    use chrono::{TimeZone, Utc};
     fn attrs(value: u8) -> PlayerAttributes {
         PlayerAttributes {
             mechanics: value,
@@ -305,6 +370,44 @@ mod tests {
             meta_power: meta,
             demands: SkillDemandProfile::for_champion(id, role),
         }
+    }
+    fn game_with_player() -> Game {
+        let mut manager = Manager::new(
+            "manager".into(),
+            "Manager".into(),
+            "One".into(),
+            "1980-01-01".into(),
+            "ES".into(),
+        );
+        manager.hire("team".into());
+        let team = Team::new(
+            "team".into(),
+            "Team".into(),
+            "TEM".into(),
+            "ES".into(),
+            "City".into(),
+            "Arena".into(),
+            1,
+        );
+        let date = Utc.with_ymd_and_hms(2026, 1, 6, 12, 0, 0).single().unwrap();
+        let mut player = Player::new(
+            "player".into(),
+            "Player".into(),
+            "One".into(),
+            "2000-01-01".into(),
+            "ES".into(),
+            LolRole::Mid,
+            attrs(60),
+        );
+        player.team_id = Some("team".into());
+        Game::new(
+            GameClock::new(date),
+            manager,
+            vec![team],
+            vec![player],
+            vec![],
+            vec![],
+        )
     }
     #[test]
     fn evaluation_is_deterministic_and_clamped() {
@@ -381,5 +484,102 @@ mod tests {
             evaluate_pick(&attrs, Some(60), &control).skill_fit,
             evaluate_pick(&attrs, Some(60), &assassin).skill_fit
         );
+    }
+    #[test]
+    fn batch_matches_individual_and_preserves_input_order() {
+        let mut game = game_with_player();
+        game.champion_masteries.push(ChampionMasteryEntry {
+            player_id: "player".into(),
+            champion_id: "Azir".into(),
+            mastery: 80,
+            last_active_on: "2026-01-06".into(),
+        });
+        let picks = vec![
+            DraftPickInput {
+                player_id: "player".into(),
+                champion_id: "Azir".into(),
+                effective_role: LolRole::Mid,
+            },
+            DraftPickInput {
+                player_id: "player".into(),
+                champion_id: "Zed".into(),
+                effective_role: LolRole::Mid,
+            },
+        ];
+        let batch = evaluate_draft_picks(&game, &picks).unwrap();
+        assert_eq!(batch[0].champion_id, "Azir");
+        assert_eq!(batch[1].champion_id, "Zed");
+        let profile = ChampionProfile {
+            champion_id: "Azir".into(),
+            role: LolRole::Mid,
+            meta_power: 60,
+            demands: SkillDemandProfile::for_champion("Azir", LolRole::Mid),
+        };
+        assert_eq!(
+            batch[0],
+            evaluate_pick(&game.players[0].attributes, Some(80), &profile)
+        );
+    }
+    #[test]
+    fn batch_uses_effective_role_for_meta_and_profile() {
+        let mut game = game_with_player();
+        game.players[0].attributes.mechanics = 10;
+        game.players[0].attributes.laning = 10;
+        game.players[0].attributes.macro_play = 100;
+        game.players[0].attributes.shotcalling = 100;
+        game.champion_patch.hidden_meta = vec![
+            ChampionMetaEntry {
+                champion_id: "Garen".into(),
+                role: "MID".into(),
+                tier: "D".into(),
+            },
+            ChampionMetaEntry {
+                champion_id: "Garen".into(),
+                role: "JUNGLE".into(),
+                tier: "S".into(),
+            },
+        ];
+        let mid = evaluate_draft_picks(
+            &game,
+            &[DraftPickInput {
+                player_id: "player".into(),
+                champion_id: "Garen".into(),
+                effective_role: LolRole::Mid,
+            }],
+        )
+        .unwrap();
+        let jungle = evaluate_draft_picks(
+            &game,
+            &[DraftPickInput {
+                player_id: "player".into(),
+                champion_id: "Garen".into(),
+                effective_role: LolRole::Jungle,
+            }],
+        )
+        .unwrap();
+        assert_eq!(mid[0].meta_power, 30);
+        assert_eq!(jungle[0].meta_power, 90);
+        assert_ne!(mid[0].skill_fit, jungle[0].skill_fit);
+    }
+    #[test]
+    fn batch_reports_missing_player_in_input_order() {
+        let game = game_with_player();
+        let error = evaluate_draft_picks(
+            &game,
+            &[
+                DraftPickInput {
+                    player_id: "player".into(),
+                    champion_id: "Azir".into(),
+                    effective_role: LolRole::Mid,
+                },
+                DraftPickInput {
+                    player_id: "missing".into(),
+                    champion_id: "Zed".into(),
+                    effective_role: LolRole::Mid,
+                },
+            ],
+        )
+        .unwrap_err();
+        assert_eq!(error, "Player not found: missing");
     }
 }

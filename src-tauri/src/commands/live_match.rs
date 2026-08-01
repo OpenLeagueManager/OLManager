@@ -10,7 +10,9 @@ use crate::application::live_match::{
     step_live_match as step_live_match_service, LolSimMatchReportInput,
 };
 use olm_core::domain::stats::MatchOutcome;
-use olm_core::draft::{evaluate_pick, ChampionProfile, SkillDemandProfile};
+use olm_core::draft::{
+    evaluate_draft_picks as evaluate_draft_picks_core, DraftPickInput, PickEvaluation,
+};
 use olm_core::game::Game;
 use olm_core::state::StateManager;
 use olm_core::team_talk::apply_team_talk as apply_team_talk_core;
@@ -119,45 +121,36 @@ pub fn evaluate_draft_pick(
     state: State<'_, StateManager>,
     player_id: String,
     champion_id: String,
-) -> Result<olm_core::draft::PickEvaluation, String> {
+) -> Result<PickEvaluation, String> {
     let game = state
         .get_game(|game: &Game| game.clone())
         .ok_or("No active game session".to_string())?;
-    let player = game
+    let effective_role = game
         .players
         .iter()
         .find(|player| player.id == player_id)
+        .map(|player| player.natural_position)
         .ok_or("Player not found".to_string())?;
-    let meta = game.champion_patch.hidden_meta.iter().find(|entry| {
-        entry.champion_id.eq_ignore_ascii_case(&champion_id)
-            && entry
-                .role
-                .eq_ignore_ascii_case(&format!("{:?}", player.natural_position))
-    });
-    let meta_power = meta
-        .map(|entry| match entry.tier.to_ascii_uppercase().as_str() {
-            "S" => 90,
-            "A" => 75,
-            "B" => 60,
-            "C" => 45,
-            "D" => 30,
-            _ => 60,
-        })
-        .unwrap_or(60);
-    let mastery = game
-        .champion_masteries
-        .iter()
-        .find(|entry| {
-            entry.player_id == player.id && entry.champion_id.eq_ignore_ascii_case(&champion_id)
-        })
-        .map(|entry| entry.mastery);
-    let profile = ChampionProfile {
-        demands: SkillDemandProfile::for_champion(&champion_id, player.natural_position),
-        champion_id,
-        role: player.natural_position,
-        meta_power,
-    };
-    Ok(evaluate_pick(&player.attributes, mastery, &profile))
+    evaluate_draft_picks_core(
+        &game,
+        &[DraftPickInput {
+            player_id,
+            champion_id,
+            effective_role,
+        }],
+    )
+    .map(|mut evaluations| evaluations.remove(0))
+}
+
+#[tauri::command]
+pub fn evaluate_draft_picks(
+    state: State<'_, StateManager>,
+    picks: Vec<DraftPickInput>,
+) -> Result<Vec<PickEvaluation>, String> {
+    let game = state
+        .get_game(|game: &Game| game.clone())
+        .ok_or("No active game session".to_string())?;
+    evaluate_draft_picks_core(&game, &picks)
 }
 
 /// Step the live match forward by N minutes. Returns the events from each minute.

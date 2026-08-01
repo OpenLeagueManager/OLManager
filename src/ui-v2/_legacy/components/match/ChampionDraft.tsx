@@ -16,6 +16,7 @@ import {
   rankBanCandidates,
   type BanRecommendationContext,
 } from "@/ui-v2/_legacy/components/match/draftIntelHelpers";
+import type { DraftPickEvaluation } from "@/ui-v2/_legacy/components/match/draftResultSimulator";
 
 type Side = "blue" | "red";
 type DraftActionType = "ban" | "pick";
@@ -73,14 +74,6 @@ interface DraftScoreBreakdown {
   counter: number;
   comfort: number;
   preparation: number;
-  total: number;
-}
-
-interface DraftPickEvaluation {
-  meta_power: number;
-  mastery: number;
-  skill_fit: number;
-  execution_risk: number;
   total: number;
 }
 
@@ -292,6 +285,32 @@ const ROLE_ORDER: Role[] = ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"];
 const ASSISTANT_COACH_PLACEHOLDER = "";
 const EMPTY_LOCKED_CHAMPION_IDS: string[] = [];
 const ROLE_ICON_URLS: Record<Role, string> = ROLE_ICON_PATHS;
+
+interface DraftEvaluationRequest {
+  playerId: string;
+  championId: string;
+  effectiveRole: Role;
+}
+
+function draftEvaluationKey(request: DraftEvaluationRequest): string {
+  return `${request.playerId}:${request.championId}:${request.effectiveRole}`;
+}
+
+export function isCurrentDraftEvaluationRequest(
+  requestId: number,
+  activeRequestId: number,
+  requestKey: string,
+  activeRequestKey: string,
+): boolean {
+  return requestId === activeRequestId && requestKey === activeRequestKey;
+}
+
+export function canUserConfirmDraftChoice(
+  pendingChampionId: string | null,
+  isUserTurn: boolean,
+): boolean {
+  return isUserTurn && pendingChampionId !== null;
+}
 
 const DRAFT_SEQUENCE: DraftAction[] = [
   { type: "ban", side: "blue", label: "B1" },
@@ -765,7 +784,6 @@ export default function ChampionDraft({
   const [blueRoleOrder, setBlueRoleOrder] = useState<number[] | null>(null);
   const [redRoleOrder, setRedRoleOrder] = useState<number[] | null>(null);
   const [pendingChampionId, setPendingChampionId] = useState<string | null>(null);
-  const [pendingEvaluation, setPendingEvaluation] = useState<DraftPickEvaluation | null>(null);
   const [swapSource, setSwapSource] = useState<{ side: Side; index: number } | null>(null);
   const [draftHistory, setDraftHistory] = useState<string[]>([]);
   const [turnDurationMs, setTurnDurationMs] = useState<number>(AI_TIMING.userTurnMs);
@@ -776,6 +794,10 @@ export default function ChampionDraft({
   const [consultedCounterChampionIds, setConsultedCounterChampionIds] = useState<Set<string>>(() => new Set());
   const autoResolvedStepKeyRef = useRef<string | null>(null);
   const finalRoleReassignFxPlayedRef = useRef(false);
+  const draftEvaluationCacheRef = useRef(new Map<string, DraftPickEvaluation>());
+  const draftEvaluationRequestIdRef = useRef(0);
+  const draftEvaluationRequestKeyRef = useRef("");
+  const [draftEvaluationVersion, setDraftEvaluationVersion] = useState(0);
 
   const bluePlayerIds = useMemo(
     () => snapshot.home_team.players.map((player) => player.id),
@@ -891,20 +913,6 @@ export default function ChampionDraft({
   };
 
   const isUserTurn = !!currentStep && !allAi && currentStep.side === controlledSide && !finished;
-
-  useEffect(() => {
-    if (!pendingChampionId || currentStep?.type !== "pick") {
-      setPendingEvaluation(null);
-      return;
-    }
-    const playerId = currentStep.side === "blue" ? bluePlayerIds[bluePicks.length] : redPlayerIds[redPicks.length];
-    if (!playerId) return;
-    let active = true;
-    invoke<DraftPickEvaluation>("evaluate_draft_pick", { playerId, championId: pendingChampionId })
-      .then((evaluation) => { if (active) setPendingEvaluation(evaluation); })
-      .catch(() => { if (active) setPendingEvaluation(null); });
-    return () => { active = false; };
-  }, [bluePicks.length, bluePlayerIds, currentStep?.side, currentStep?.type, pendingChampionId, redPicks.length, redPlayerIds]);
 
   const totalSteps = DRAFT_SEQUENCE.length;
   const currentStepNumber = Math.min(stepIndex + 1, totalSteps);
@@ -1088,6 +1096,77 @@ export default function ChampionDraft({
     search(0, new Set<Role>());
     return result;
   };
+
+  const currentPickEvaluationContext = useMemo((): Omit<DraftEvaluationRequest, "championId"> | null => {
+    if (currentStep?.type !== "pick") return null;
+    const pickIndex = currentStep.side === "blue" ? bluePicks.length : redPicks.length;
+    const player = currentStep.side === "blue" ? bluePlayers[pickIndex] : redPlayers[pickIndex];
+    const effectiveRole = ROLE_ORDER[pickIndex];
+    if (!player || !effectiveRole) return null;
+    return { playerId: player.id, effectiveRole };
+  }, [bluePicks.length, bluePlayers, currentStep?.side, currentStep?.type, redPicks.length, redPlayers]);
+
+  const currentPickEvaluationContextKey = currentPickEvaluationContext
+    ? `${stepIndex}:${currentStep?.side}:${currentPickEvaluationContext.playerId}:${currentPickEvaluationContext.effectiveRole}`
+    : "";
+
+  useEffect(() => {
+    if (!currentPickEvaluationContext) return;
+    const requests = champions
+      .filter((champion) => !usedChampionIds.has(champion.id))
+      .map((champion) => ({ ...currentPickEvaluationContext, championId: champion.id }));
+    const missing = requests.filter((request) => !draftEvaluationCacheRef.current.has(draftEvaluationKey(request)));
+    if (missing.length === 0) return;
+
+    const requestId = draftEvaluationRequestIdRef.current + 1;
+    draftEvaluationRequestIdRef.current = requestId;
+    draftEvaluationRequestKeyRef.current = currentPickEvaluationContextKey;
+    let active = true;
+    invoke<DraftPickEvaluation[]>("evaluate_draft_picks", { picks: missing })
+      .then((evaluations) => {
+        if (!active || !isCurrentDraftEvaluationRequest(
+          requestId,
+          draftEvaluationRequestIdRef.current,
+          currentPickEvaluationContextKey,
+          draftEvaluationRequestKeyRef.current,
+        )) return;
+        evaluations.forEach((evaluation, index) => {
+          const request = missing[index];
+          if (request) draftEvaluationCacheRef.current.set(draftEvaluationKey(request), evaluation);
+        });
+        setDraftEvaluationVersion((version) => version + 1);
+      })
+      .catch(() => {
+        // A failed recommendation must never prevent a user pick or trap an AI turn.
+        if (active && isCurrentDraftEvaluationRequest(
+          requestId,
+          draftEvaluationRequestIdRef.current,
+          currentPickEvaluationContextKey,
+          draftEvaluationRequestKeyRef.current,
+        )) {
+          missing.forEach((request) => {
+            draftEvaluationCacheRef.current.set(draftEvaluationKey(request), {
+              champion_id: request.championId,
+              meta_power: 0,
+              mastery: 0,
+              skill_fit: 0,
+              execution_risk: 0,
+              total: 0,
+              engine_modifier: 0,
+            });
+          });
+          setDraftEvaluationVersion((version) => version + 1);
+        }
+      });
+    return () => { active = false; };
+  }, [champions, currentPickEvaluationContext, currentPickEvaluationContextKey, usedChampionIds]);
+
+  const pendingEvaluation = pendingChampionId && currentPickEvaluationContext
+    ? draftEvaluationCacheRef.current.get(draftEvaluationKey({
+      ...currentPickEvaluationContext,
+      championId: pendingChampionId,
+    })) ?? null
+    : null;
 
   const buildOrderedPicks = (
     side: Side,
@@ -1361,12 +1440,17 @@ export default function ChampionDraft({
 
       if (scoringPool.length === 0) return available[0] ?? null;
 
+      if (!currentPickEvaluationContext) return null;
+
       let bestChampion: ChampionData | null = null;
       let bestScore = Number.NEGATIVE_INFINITY;
 
       scoringPool.forEach((champion) => {
-        const mastery = resolveTeamChampionMastery(aiSide, champion.id);
-        const meta = metaScoreForChampion(champion);
+        const evaluation = draftEvaluationCacheRef.current.get(draftEvaluationKey({
+          ...currentPickEvaluationContext,
+          championId: champion.id,
+        }));
+        if (!evaluation) return;
         const roleNeedBonus =
           missingRoles.length > 0 && champion.roleHints.some((role) => missingRoles.includes(role)) ? 12 : 0;
         let counter = 0;
@@ -1376,11 +1460,7 @@ export default function ChampionDraft({
           counter -= counterValue(enemyPick.championId, champion.id) * AI_WEIGHTS.pick.counterRiskWeight;
         });
 
-        const score =
-          mastery * AI_WEIGHTS.pick.masteryWeight +
-          meta * AI_WEIGHTS.pick.metaWeight +
-          counter +
-          roleNeedBonus;
+        const score = evaluation.total + counter + roleNeedBonus;
         if (score > bestScore) {
           bestScore = score;
           bestChampion = champion;
@@ -1620,9 +1700,9 @@ export default function ChampionDraft({
 
     const timer = setTimeout(() => {
       if (autoResolvedStepKeyRef.current === currentStepKey) return;
-      autoResolvedStepKeyRef.current = currentStepKey;
       const autoChampion = selectAiChampionForCurrentStep();
       if (autoChampion) {
+        autoResolvedStepKeyRef.current = currentStepKey;
         handleSelectChampion(autoChampion, "ai");
       }
     }, aiDelay);
@@ -1634,6 +1714,8 @@ export default function ChampionDraft({
     controlledSide,
     currentStep,
     currentStepKey,
+    currentPickEvaluationContext,
+    draftEvaluationVersion,
     finished,
     loading,
     usedChampionIds,
@@ -1644,11 +1726,11 @@ export default function ChampionDraft({
     if (turnRemainingMs > 0) return;
     if (autoResolvedStepKeyRef.current === currentStepKey) return;
 
-    autoResolvedStepKeyRef.current = currentStepKey;
     const autoChampion = !allAi && currentStep.side === controlledSide
       ? selectTimeoutChampionForUserTurn()
       : selectAiChampionForCurrentStep();
     if (autoChampion) {
+      autoResolvedStepKeyRef.current = currentStepKey;
       handleSelectChampion(autoChampion, !allAi && currentStep.side === controlledSide ? "user" : "ai");
     }
   }, [
@@ -1659,6 +1741,7 @@ export default function ChampionDraft({
     controlledSide,
     currentStep,
     currentStepKey,
+    draftEvaluationVersion,
     finished,
     loading,
     pendingChampionId,
@@ -3039,7 +3122,7 @@ export default function ChampionDraft({
                   <button
                     type="button"
                     onClick={handleConfirmPendingAction}
-                    disabled={!pendingChampionId}
+                    disabled={!canUserConfirmDraftChoice(pendingChampionId, isUserTurn)}
                     className="rounded-md bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-navy-900 px-3 py-1 text-xs font-heading font-bold uppercase tracking-wide"
                   >
                     {currentStep?.type === "ban"
@@ -3377,5 +3460,3 @@ function DraftSlot({
     </div>
   );
 }
-
-

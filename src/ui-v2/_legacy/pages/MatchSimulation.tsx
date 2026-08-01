@@ -22,7 +22,9 @@ import DraftResultScreenV2 from "@/ui-v2/components/DraftResultScreenV2";
 import PressConference from "@/ui-v2/_legacy/components/match/PressConference";
 import {
   simulateDraftMatchResult,
+  type DraftEvaluationsBySide,
   type DraftPlayerResult,
+  type DraftPickEvaluation,
   type DraftMatchResult,
 } from "@/ui-v2/_legacy/components/match/draftResultSimulator";
 import {
@@ -300,6 +302,37 @@ export function draftPicksByPlayerRole(
     used.add(player.id);
     return [{ playerId: player.id, championId: pick.championId }];
   });
+}
+
+function draftEvaluationInputs(
+  snapshot: MatchSnapshot,
+  payload: ChampionDraftResultPayload,
+): Array<{ playerId: string; championId: string; effectiveRole: "TOP" | "JUNGLE" | "MID" | "ADC" | "SUPPORT" }> {
+  const inputsForSide = (
+    players: MatchSnapshot["home_team"]["players"],
+    picks: ChampionDraftResultPayload["blue"]["picks"],
+  ) => {
+    const picksByPlayer = draftPicksByPlayerRole(players, picks);
+    return picksByPlayer.map(({ playerId, championId }) => ({
+      playerId,
+      championId,
+      effectiveRole: picks.find((pick) => pick.championId === championId)?.role ?? "SUPPORT",
+    }));
+  };
+  return [
+    ...inputsForSide(snapshot.home_team.players, payload.blue.picks),
+    ...inputsForSide(snapshot.away_team.players, payload.red.picks),
+  ];
+}
+
+function splitDraftEvaluations(
+  payload: ChampionDraftResultPayload,
+  evaluations: DraftPickEvaluation[],
+): DraftEvaluationsBySide {
+  return {
+    blue: evaluations.slice(0, payload.blue.picks.length),
+    red: evaluations.slice(payload.blue.picks.length, payload.blue.picks.length + payload.red.picks.length),
+  };
 }
 
 function parseRuntimeEventSide(text: string | undefined): "blue" | "red" | null {
@@ -812,6 +845,7 @@ export default function MatchSimulation() {
   const [importantEvents, setImportantEvents] = useState<MatchEvent[]>([]);
   const [finalRuntimeState, setFinalRuntimeState] = useState<LolSimV1RuntimeState | null>(null);
   const [draftPayload, setDraftPayload] = useState<ChampionDraftResultPayload | null>(null);
+  const [draftEvaluations, setDraftEvaluations] = useState<DraftEvaluationsBySide | null>(null);
   const [draftResultSimulation, setDraftResultSimulation] = useState<DraftMatchResult | null>(null);
   const [finalDraftResult, setFinalDraftResult] = useState<DraftMatchResult | null>(null);
   const [championSelections, setChampionSelections] = useState<ChampionSelectionByPlayer | null>(null);
@@ -1244,10 +1278,11 @@ export default function MatchSimulation() {
     setStage("draft");
   }, []);
 
-  const handleDraftComplete = useCallback((_payload: ChampionDraftResultPayload) => {
+  const handleDraftComplete = useCallback(async (_payload: ChampionDraftResultPayload) => {
     console.info("[MatchSimulation] handleDraftComplete");
     const payload = _payload;
     setDraftPayload(payload);
+    setDraftEvaluations(null);
     if (activeSnapshot) {
       const roles = ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] as const;
       const inferRole = (position: string): typeof roles[number] => {
@@ -1306,6 +1341,16 @@ export default function MatchSimulation() {
         homeRoles: homeDraft.roles,
         awayRoles: awayDraft.roles,
       });
+    }
+    if (activeSnapshot) {
+      try {
+        const evaluations = await invoke<DraftPickEvaluation[]>("evaluate_draft_picks", {
+          picks: draftEvaluationInputs(activeSnapshot, payload),
+        });
+        setDraftEvaluations(splitDraftEvaluations(payload, evaluations));
+      } catch (error) {
+        console.error("[MatchSimulation] draftEvaluation:failed", error);
+      }
     }
     setStage("tactics");
   }, [activeSnapshot]);
@@ -1408,6 +1453,7 @@ export default function MatchSimulation() {
           snapshot: renderSnapshotWithTactics,
           gameState,
           draft: safeDraftPayload,
+          draftEvaluations: draftEvaluations ?? undefined,
           seedSalt: `${currentFixture?.id ?? "fixture"}-g${seriesGameIndex + 1}`,
         });
         finalResult = simulated;
@@ -1591,6 +1637,7 @@ export default function MatchSimulation() {
     currentFixture?.result?.away_wins,
     currentFixture?.result?.home_goals,
     currentFixture?.result?.home_wins,
+    draftEvaluations,
     draftPayload,
     finalizeMatch,
     gameState,
@@ -1635,6 +1682,7 @@ export default function MatchSimulation() {
           snapshot: renderSnapshotWithTactics,
           gameState,
           draft: safeDraftPayload,
+          draftEvaluations: draftEvaluations ?? undefined,
           seedSalt: `${currentFixture?.id ?? "fixture"}-g${seriesGameIndex + 1}-delegate`,
         });
 
