@@ -286,6 +286,7 @@ pub fn run() {
             start_live_match,
             evaluate_draft_pick,
             evaluate_draft_picks,
+            evaluate_draft_state,
             get_player_match_history,
             get_player_stats_overview,
             get_team_match_history,

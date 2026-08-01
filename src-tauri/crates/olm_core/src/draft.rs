@@ -1,5 +1,6 @@
 use crate::domain::player::{LolRole, PlayerAttributes};
 use crate::game::Game;
+use crate::meta_relationships::{canonical_champion_id, counter_value, synergy_pair_value};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -229,6 +230,195 @@ pub struct DraftPickInput {
     pub player_id: String,
     pub champion_id: String,
     pub effective_role: LolRole,
+}
+
+/// Relationship deltas are deliberately small so they complement, rather than replace,
+/// the existing meta/mastery/skill evaluation.
+pub const MAX_RELATIONSHIP_CONTRIBUTION: i8 = 12;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftSideInput {
+    pub team_id: String,
+    pub picks: Vec<DraftPickInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftKnowledgeInput {
+    /// Exact opponent champion IDs whose relationship data was revealed elsewhere.
+    #[serde(default)]
+    pub authorized_relationship_champion_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftStateInput {
+    pub viewer_team_id: String,
+    pub blue: DraftSideInput,
+    pub red: DraftSideInput,
+    #[serde(default)]
+    pub knowledge: DraftKnowledgeInput,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftRelationshipContribution {
+    pub synergy: i8,
+    pub counter: i8,
+    pub total: i8,
+    pub reasons: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftStateEvaluation {
+    /// Existing evaluations are restricted to the manager's own players and redacted
+    /// when their meta entry has not been discovered.
+    pub pick_evaluations: Vec<VisiblePickEvaluation>,
+    /// Only the viewer's authorized relationships are serialized. The other side is neutral.
+    pub blue_relationship: DraftRelationshipContribution,
+    pub red_relationship: DraftRelationshipContribution,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct VisiblePickEvaluation {
+    pub champion_id: String,
+    pub meta_power: Option<u8>,
+    pub mastery: u8,
+    pub skill_fit: u8,
+    pub execution_risk: u8,
+    pub total: Option<u8>,
+    pub engine_modifier: Option<f64>,
+}
+
+fn relationship_contribution(
+    own_picks: &[DraftPickInput],
+    enemy_picks: &[DraftPickInput],
+    authorized_enemy_ids: &std::collections::HashSet<String>,
+) -> DraftRelationshipContribution {
+    let mut synergy = 0_i8;
+    let mut counter = 0_i8;
+    let mut reasons = Vec::new();
+    for (index, pick) in own_picks.iter().enumerate() {
+        for teammate in &own_picks[index + 1..] {
+            let value = synergy_pair_value(&pick.champion_id, &teammate.champion_id);
+            if value > 0 {
+                synergy += value;
+                reasons.push("team synergy".to_string());
+            }
+        }
+        for enemy in enemy_picks {
+            if !authorized_enemy_ids.contains(&canonical_champion_id(&enemy.champion_id)) {
+                continue;
+            }
+            counter += counter_value(&pick.champion_id, &enemy.champion_id);
+            counter -= counter_value(&enemy.champion_id, &pick.champion_id);
+        }
+    }
+    synergy = synergy.clamp(
+        -MAX_RELATIONSHIP_CONTRIBUTION,
+        MAX_RELATIONSHIP_CONTRIBUTION,
+    );
+    counter = counter.clamp(
+        -MAX_RELATIONSHIP_CONTRIBUTION,
+        MAX_RELATIONSHIP_CONTRIBUTION,
+    );
+    DraftRelationshipContribution {
+        synergy,
+        counter,
+        total: (synergy + counter).clamp(
+            -MAX_RELATIONSHIP_CONTRIBUTION,
+            MAX_RELATIONSHIP_CONTRIBUTION,
+        ),
+        reasons: if reasons.is_empty() {
+            Vec::new()
+        } else {
+            vec!["team synergy".to_string()]
+        },
+    }
+}
+
+/// Evaluates a completed draft through one privacy-preserving seam. Hidden meta and
+/// unapproved opponent relationships never cross this API.
+pub fn evaluate_draft_state(
+    game: &Game,
+    input: &DraftStateInput,
+) -> Result<DraftStateEvaluation, String> {
+    let viewer_is_blue = input.blue.team_id == input.viewer_team_id;
+    let viewer_is_red = input.red.team_id == input.viewer_team_id;
+    if !viewer_is_blue && !viewer_is_red {
+        return Err("Viewer team is not in this draft".to_string());
+    }
+    let own = if viewer_is_blue {
+        &input.blue
+    } else {
+        &input.red
+    };
+    let enemy = if viewer_is_blue {
+        &input.red
+    } else {
+        &input.blue
+    };
+    let authorized_enemy_ids = input
+        .knowledge
+        .authorized_relationship_champion_ids
+        .iter()
+        .map(|id| canonical_champion_id(id))
+        .collect();
+    if own.picks.iter().any(|pick| {
+        game.players
+            .iter()
+            .find(|player| player.id == pick.player_id)
+            .and_then(|player| player.team_id.as_deref())
+            != Some(input.viewer_team_id.as_str())
+    }) {
+        return Err("Draft contains a player outside the viewer team".to_string());
+    }
+    let visible_relationship =
+        relationship_contribution(&own.picks, &enemy.picks, &authorized_enemy_ids);
+    let neutral = DraftRelationshipContribution {
+        synergy: 0,
+        counter: 0,
+        total: 0,
+        reasons: Vec::new(),
+    };
+    let discovered = game
+        .champion_patch
+        .discovered_champion_ids
+        .iter()
+        .map(|id| canonical_champion_id(id))
+        .collect::<HashSet<_>>();
+    let pick_evaluations = evaluate_draft_picks(game, &own.picks)?
+        .into_iter()
+        .map(|evaluation| {
+            let meta_is_discovered =
+                discovered.contains(&canonical_champion_id(&evaluation.champion_id));
+            VisiblePickEvaluation {
+                champion_id: evaluation.champion_id,
+                meta_power: meta_is_discovered.then_some(evaluation.meta_power),
+                mastery: evaluation.mastery,
+                skill_fit: evaluation.skill_fit,
+                execution_risk: evaluation.execution_risk,
+                total: meta_is_discovered.then_some(evaluation.total),
+                engine_modifier: meta_is_discovered.then_some(evaluation.engine_modifier),
+            }
+        })
+        .collect();
+    Ok(DraftStateEvaluation {
+        pick_evaluations,
+        blue_relationship: if viewer_is_blue {
+            visible_relationship.clone()
+        } else {
+            neutral.clone()
+        },
+        red_relationship: if viewer_is_red {
+            visible_relationship
+        } else {
+            neutral
+        },
+    })
 }
 
 fn meta_power_for(game: &Game, champion_id: &str, role: LolRole) -> u8 {
@@ -581,5 +771,115 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error, "Player not found: missing");
+    }
+
+    #[test]
+    fn state_evaluation_filters_unapproved_counter_knowledge_and_clamps_relationships() {
+        let game = game_with_player();
+        let blue = DraftSideInput {
+            team_id: "team".into(),
+            picks: vec![
+                DraftPickInput {
+                    player_id: "player".into(),
+                    champion_id: "Aatrox".into(),
+                    effective_role: LolRole::Top,
+                },
+                DraftPickInput {
+                    player_id: "player".into(),
+                    champion_id: "Kindred".into(),
+                    effective_role: LolRole::Jungle,
+                },
+            ],
+        };
+        let red = DraftSideInput {
+            team_id: "rival".into(),
+            picks: vec![DraftPickInput {
+                player_id: "player".into(),
+                champion_id: "Chogath".into(),
+                effective_role: LolRole::Top,
+            }],
+        };
+        let hidden = evaluate_draft_state(
+            &game,
+            &DraftStateInput {
+                viewer_team_id: "team".into(),
+                blue: blue.clone(),
+                red: red.clone(),
+                knowledge: DraftKnowledgeInput::default(),
+            },
+        )
+        .unwrap();
+        assert_eq!(hidden.blue_relationship.synergy, 2);
+        assert_eq!(hidden.blue_relationship.counter, 0);
+        assert_eq!(hidden.red_relationship.total, 0);
+        assert!(
+            hidden
+                .blue_relationship
+                .reasons
+                .iter()
+                .all(|reason| reason == "team synergy")
+        );
+        assert_eq!(hidden.pick_evaluations[0].meta_power, None);
+        assert_eq!(hidden.pick_evaluations[0].total, None);
+
+        let reversed = evaluate_draft_state(
+            &game,
+            &DraftStateInput {
+                viewer_team_id: "team".into(),
+                blue: DraftSideInput {
+                    team_id: "team".into(),
+                    picks: blue.picks.iter().cloned().rev().collect(),
+                },
+                red: red.clone(),
+                knowledge: DraftKnowledgeInput::default(),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            reversed.blue_relationship.synergy,
+            hidden.blue_relationship.synergy
+        );
+
+        let authorized = evaluate_draft_state(
+            &game,
+            &DraftStateInput {
+                viewer_team_id: "team".into(),
+                blue,
+                red,
+                knowledge: DraftKnowledgeInput {
+                    authorized_relationship_champion_ids: vec!["Cho'Gath".into()],
+                },
+            },
+        )
+        .unwrap();
+        assert_eq!(authorized.blue_relationship.counter, 1);
+        assert!(authorized.blue_relationship.total.abs() <= MAX_RELATIONSHIP_CONTRIBUTION);
+    }
+
+    #[test]
+    fn state_evaluation_is_deterministic_and_rejects_unknown_viewer() {
+        let game = game_with_player();
+        let input = DraftStateInput {
+            viewer_team_id: "team".into(),
+            blue: DraftSideInput {
+                team_id: "team".into(),
+                picks: vec![],
+            },
+            red: DraftSideInput {
+                team_id: "rival".into(),
+                picks: vec![],
+            },
+            knowledge: DraftKnowledgeInput::default(),
+        };
+        assert_eq!(
+            evaluate_draft_state(&game, &input),
+            evaluate_draft_state(&game, &input)
+        );
+        let mut invalid = input;
+        invalid.viewer_team_id = "other".into();
+        assert_eq!(
+            evaluate_draft_state(&game, &invalid).unwrap_err(),
+            "Viewer team is not in this draft"
+        );
     }
 }

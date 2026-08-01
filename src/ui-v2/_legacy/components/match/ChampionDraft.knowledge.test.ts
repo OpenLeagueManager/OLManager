@@ -7,6 +7,7 @@ import {
   selectStaffRevealEntries,
   isCurrentDraftEvaluationRequest,
   canUserConfirmDraftChoice,
+  authorizedRelationshipChampionIdsForViewer,
 } from "@/ui-v2/_legacy/components/match/ChampionDraft";
 import type { ScrimReportData } from "@/store/gameStore";
 
@@ -43,6 +44,25 @@ function scrimReport(overrides: Partial<ScrimReportData>): ScrimReportData {
 }
 
 describe("ChampionDraft rival mastery knowledge", () => {
+  it("authorizes only locked, visible opposing picks for relationship evaluation", () => {
+    const score = { mastery: 0, synergy: 0, counter: 0, comfort: 0, preparation: 0, total: 0 };
+    const draft = {
+      blue: { picks: [{ role: "TOP" as const, championId: "Aatrox" }], bans: [], score },
+      red: {
+        picks: [
+          { role: "TOP" as const, championId: "ChoGath" },
+          { role: "JUNGLE" as const, championId: "LeeSin" },
+          { role: "JUNGLE" as const, championId: "LeeSin" },
+        ],
+        bans: [],
+        score,
+      },
+    };
+
+    expect(authorizedRelationshipChampionIdsForViewer("blue", draft)).toEqual(["ChoGath", "LeeSin"]);
+    expect(authorizedRelationshipChampionIdsForViewer("red", draft)).toEqual(["Aatrox"]);
+  });
+
   it("rejects an evaluation response that belongs to a previous draft turn", () => {
     expect(isCurrentDraftEvaluationRequest(1, 2, "first-turn", "second-turn")).toBe(false);
     expect(isCurrentDraftEvaluationRequest(2, 2, "current-turn", "current-turn")).toBe(true);

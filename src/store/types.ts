@@ -152,7 +152,7 @@ export interface CreateAcademyRequestData extends AcquireAcademyTeamRequestData 
 
 export interface LolTacticsData {
   strong_side: "Top" | "Mid" | "Bot";
-  game_timing: "Early" | "Mid" | "Late";
+  game_timing: "Unknown" | "Early" | "Mid" | "Late";
   jungle_style: "Ganker" | "Invader" | "Farmer" | "Enabler";
   jungle_pathing: "TopToBot" | "BotToTop";
   fight_plan: "FrontToBack" | "Pick" | "Dive" | "Siege";

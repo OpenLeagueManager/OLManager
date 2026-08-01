@@ -11,7 +11,9 @@ use crate::application::live_match::{
 };
 use olm_core::domain::stats::MatchOutcome;
 use olm_core::draft::{
-    evaluate_draft_picks as evaluate_draft_picks_core, DraftPickInput, PickEvaluation,
+    evaluate_draft_picks as evaluate_draft_picks_core,
+    evaluate_draft_state as evaluate_draft_state_core, DraftPickInput, DraftStateEvaluation,
+    DraftStateInput, PickEvaluation,
 };
 use olm_core::game::Game;
 use olm_core::state::StateManager;
@@ -151,6 +153,18 @@ pub fn evaluate_draft_picks(
         .get_game(|game: &Game| game.clone())
         .ok_or("No active game session".to_string())?;
     evaluate_draft_picks_core(&game, &picks)
+}
+
+/// Evaluates a completed manual draft without serializing hidden meta or unapproved rival data.
+#[tauri::command]
+pub fn evaluate_draft_state(
+    state: State<'_, StateManager>,
+    input: DraftStateInput,
+) -> Result<DraftStateEvaluation, String> {
+    let game = state
+        .get_game(|game: &Game| game.clone())
+        .ok_or("No active game session".to_string())?;
+    evaluate_draft_state_core(&game, &input)
 }
 
 /// Step the live match forward by N minutes. Returns the events from each minute.

@@ -16,7 +16,7 @@ import {
   rankBanCandidates,
   type BanRecommendationContext,
 } from "@/ui-v2/_legacy/components/match/draftIntelHelpers";
-import type { DraftPickEvaluation } from "@/ui-v2/_legacy/components/match/draftResultSimulator";
+import type { DraftPickEvaluation, DraftStateEvaluation } from "@/ui-v2/_legacy/components/match/draftResultSimulator";
 
 type Side = "blue" | "red";
 type DraftActionType = "ban" | "pick";
@@ -89,6 +89,16 @@ export interface ChampionDraftResultPayload {
     score: DraftScoreBreakdown;
   };
   history: string[];
+  canonical?: DraftStateEvaluation;
+}
+
+/** Sends only champions already locked and visible on the opposing draft side. */
+export function authorizedRelationshipChampionIdsForViewer(
+  viewerSide: Side,
+  draft: Pick<ChampionDraftResultPayload, "blue" | "red">,
+): string[] {
+  const enemyPicks = viewerSide === "blue" ? draft.red.picks : draft.blue.picks;
+  return Array.from(new Set(enemyPicks.map((pick) => pick.championId)));
 }
 
 interface TeamSeed {
@@ -598,26 +608,6 @@ function hashText(value: string): number {
   return hash;
 }
 
-function planTempo(draftStrategy: string): "early" | "mid" | "late" {
-  switch (draftStrategy) {
-    case "Attacking":
-    case "HighPress":
-    case "Counter":
-      return "early";
-    case "Defensive":
-      return "late";
-    default:
-      return "mid";
-  }
-}
-
-function championTempo(championId: string): "early" | "mid" | "late" {
-  const mod = hashText(championId) % 3;
-  if (mod === 0) return "early";
-  if (mod === 1) return "mid";
-  return "late";
-}
-
 function reportTimestamp(report: ScrimReportData): number {
   const raw = report.created_on || report.date;
   const parsed = Date.parse(raw);
@@ -688,10 +678,6 @@ export function calculateScrimDraftSignal(
     synergy: Math.min(4, synergy),
     reasons: Array.from(reasons),
   };
-}
-
-function hasSynergy(a: string, b: string): boolean {
-  return hashText(`${a}++${b}`) % 7 === 0;
 }
 
 function counterValue(allyChampionId: string, enemyChampionId: string): number {
@@ -1753,7 +1739,6 @@ export default function ChampionDraft({
   const scoreDraft = (side: Side): DraftScoreBreakdown => {
     const ownPicks = side === "blue" ? bluePicks : redPicks;
     const enemyPicks = side === "blue" ? redPicks : bluePicks;
-    const ownPlan = planTempo(side === "blue" ? snapshot.home_team.draft_strategy : snapshot.away_team.draft_strategy);
     const teamId = side === "blue" ? snapshot.home_team.id : snapshot.away_team.id;
     const opponentTeamId = side === "blue" ? snapshot.away_team.id : snapshot.home_team.id;
     const playerIds = side === "blue" ? bluePlayerIds : redPlayerIds;
@@ -1771,15 +1756,6 @@ export default function ChampionDraft({
       else if (champMastery >= 50) mastery += 2;
       else if (champMastery >= 25) mastery += 1;
 
-      const tempo = championTempo(pick.championId);
-      if (tempo === ownPlan) comfort += 2;
-      else if (
-        (ownPlan === "early" && tempo === "late") ||
-        (ownPlan === "late" && tempo === "early")
-      ) {
-        comfort -= 2;
-      }
-
       enemyPicks.forEach((enemyPick) => {
         counter +=
           counterValue(pick.championId, enemyPick.championId) *
@@ -1789,12 +1765,6 @@ export default function ChampionDraft({
           AI_WEIGHTS.score.counterRiskWeight;
       });
     });
-
-    for (let i = 0; i < ownPicks.length; i += 1) {
-      for (let j = i + 1; j < ownPicks.length; j += 1) {
-        if (hasSynergy(ownPicks[i].championId, ownPicks[j].championId)) synergy += 2;
-      }
-    }
 
     if (ownPicks.length > 0) {
       preparation = Math.round(Math.max(-1, Math.min(3, (staffEffects.tactics - 1) * 4 + (staffEffects.analysis - 1) * 3)));

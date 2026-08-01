@@ -113,6 +113,28 @@ export interface DraftEvaluationsBySide {
   red: DraftPickEvaluation[];
 }
 
+export interface DraftRelationshipContribution {
+  synergy: number;
+  counter: number;
+  total: number;
+  reasons: string[];
+}
+
+/** Privacy-filtered response from the canonical Rust draft seam. */
+export interface DraftStateEvaluation {
+  pick_evaluations: Array<{
+    champion_id: string;
+    meta_power: number | null;
+    mastery: number;
+    skill_fit: number;
+    execution_risk: number;
+    total: number | null;
+    engine_modifier: number | null;
+  }>;
+  blue_relationship: DraftRelationshipContribution;
+  red_relationship: DraftRelationshipContribution;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -383,10 +405,12 @@ function tacticsPowerBonus(params: {
   const coherenceScore = computeCoherenceBreakdown(own).reduce((sum, item) => sum + item.delta, 0);
   score += coherenceScore * 2.2;
 
-  const teamTimingFit = computeTeamTimingFit({
-    championIds: ownPicks.map((pick) => pick.championId),
-    preference: own.game_timing,
-  });
+  const teamTimingFit = own.game_timing === "Unknown"
+    ? 0
+    : computeTeamTimingFit({
+      championIds: ownPicks.map((pick) => pick.championId),
+      preference: own.game_timing,
+    });
   score += teamTimingFit * 2.5;
 
   return clamp(score, -12, 12);
@@ -497,16 +521,20 @@ export function simulateDraftMatchResult(params: {
   // remain independent inputs below rather than being folded into this score.
   const blueDraftStrength = average(draftEvaluations?.blue.map((evaluation) => evaluation.total) ?? [50]);
   const redDraftStrength = average(draftEvaluations?.red.map((evaluation) => evaluation.total) ?? [50]);
+  const blueRelationship = draft.canonical?.blue_relationship.total ?? 0;
+  const redRelationship = draft.canonical?.red_relationship.total ?? 0;
 
   const bluePower =
     blueOverall * 0.35 +
     blueDraftStrength * 0.20 +
+    blueRelationship * 0.35 +
     blueTacticsBonus +
     blueMorale * 0.15 +
     blueCondition * 0.10;
   const redPower =
     redOverall * 0.35 +
     redDraftStrength * 0.20 +
+    redRelationship * 0.35 +
     redTacticsBonus +
     redMorale * 0.15 +
     redCondition * 0.10;
@@ -534,7 +562,8 @@ export function simulateDraftMatchResult(params: {
     const plan = side === "blue" ? blueData.tactics : redData.tactics;
     if (plan.game_timing === "Early") return minute <= 14 ? 0.06 : -0.03;
     if (plan.game_timing === "Late") return minute >= 22 ? 0.06 : -0.03;
-    return minute >= 12 && minute <= 24 ? 0.04 : 0;
+    if (plan.game_timing === "Mid") return minute >= 12 && minute <= 24 ? 0.04 : 0;
+    return 0;
   };
 
   const supportRoamBias = (side: Side, minute: number): number => {
@@ -990,5 +1019,3 @@ export function simulateDraftMatchResult(params: {
     },
   };
 }
-
-

@@ -224,8 +224,9 @@ pub enum StrongSide {
 #[cfg_attr(feature = "typescript", derive(TS))]
 #[cfg_attr(feature = "typescript", ts(export))]
 pub enum GameTiming {
-    Early,
     #[default]
+    Unknown,
+    Early,
     Mid,
     Late,
 }

@@ -25,6 +25,7 @@ pub mod identity_upgrade;
 pub mod job_offers;
 pub mod live_match_manager;
 pub mod messages;
+pub mod meta_relationships;
 pub mod narrative;
 pub mod news;
 pub mod player_events;

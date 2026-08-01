@@ -12,7 +12,9 @@ import {
 import { mapRuntimeEventsToMatchEvents, mergeRuntimeEventsIntoSnapshot } from "@/ui-v2/_legacy/components/match/matchRuntimeEvents";
 import { resolveMatchFixture } from "@/ui-v2/_legacy/components/match/helpers";
 import PreMatchSetup from "@/ui-v2/_legacy/components/match/PreMatchSetup";
-import ChampionDraft from "@/ui-v2/_legacy/components/match/ChampionDraft";
+import ChampionDraft, {
+  authorizedRelationshipChampionIdsForViewer,
+} from "@/ui-v2/_legacy/components/match/ChampionDraft";
 import type { ChampionDraftResultPayload } from "@/ui-v2/_legacy/components/match/ChampionDraft";
 import LolMatchLive from "@/ui-v2/_legacy/components/match/LolMatchLive";
 import type { ChampionSelectionByPlayer } from "@/ui-v2/_legacy/components/match/LolMatchLive";
@@ -24,8 +26,8 @@ import {
   simulateDraftMatchResult,
   type DraftEvaluationsBySide,
   type DraftPlayerResult,
-  type DraftPickEvaluation,
   type DraftMatchResult,
+  type DraftStateEvaluation,
 } from "@/ui-v2/_legacy/components/match/draftResultSimulator";
 import {
   lolSimV2RunToCompletion,
@@ -323,16 +325,6 @@ function draftEvaluationInputs(
     ...inputsForSide(snapshot.home_team.players, payload.blue.picks),
     ...inputsForSide(snapshot.away_team.players, payload.red.picks),
   ];
-}
-
-function splitDraftEvaluations(
-  payload: ChampionDraftResultPayload,
-  evaluations: DraftPickEvaluation[],
-): DraftEvaluationsBySide {
-  return {
-    blue: evaluations.slice(0, payload.blue.picks.length),
-    red: evaluations.slice(payload.blue.picks.length, payload.blue.picks.length + payload.red.picks.length),
-  };
 }
 
 function parseRuntimeEventSide(text: string | undefined): "blue" | "red" | null {
@@ -1280,8 +1272,7 @@ export default function MatchSimulation() {
 
   const handleDraftComplete = useCallback(async (_payload: ChampionDraftResultPayload) => {
     console.info("[MatchSimulation] handleDraftComplete");
-    const payload = _payload;
-    setDraftPayload(payload);
+    let payload = _payload;
     setDraftEvaluations(null);
     if (activeSnapshot) {
       const roles = ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] as const;
@@ -1344,16 +1335,36 @@ export default function MatchSimulation() {
     }
     if (activeSnapshot) {
       try {
-        const evaluations = await invoke<DraftPickEvaluation[]>("evaluate_draft_picks", {
-          picks: draftEvaluationInputs(activeSnapshot, payload),
+        const inputs = draftEvaluationInputs(activeSnapshot, payload);
+        const viewerTeamId = gameState?.manager.team_id ?? activeSnapshot.home_team.id;
+        const viewerSide = viewerTeamId === activeSnapshot.home_team.id ? "blue" : "red";
+        const canonical = await invoke<DraftStateEvaluation>("evaluate_draft_state", {
+          input: {
+            viewerTeamId,
+            blue: { teamId: activeSnapshot.home_team.id, picks: inputs.slice(0, payload.blue.picks.length) },
+            red: { teamId: activeSnapshot.away_team.id, picks: inputs.slice(payload.blue.picks.length) },
+            knowledge: {
+              authorizedRelationshipChampionIds: authorizedRelationshipChampionIdsForViewer(viewerSide, payload),
+            },
+          },
         });
-        setDraftEvaluations(splitDraftEvaluations(payload, evaluations));
+        payload = { ...payload, canonical };
+        const viewerIsBlue = viewerTeamId === activeSnapshot.home_team.id;
+        const visibleEvaluations = canonical.pick_evaluations.flatMap((evaluation) =>
+          typeof evaluation.total === "number" && typeof evaluation.engine_modifier === "number"
+            ? [{ ...evaluation, meta_power: evaluation.meta_power ?? 60, total: evaluation.total, engine_modifier: evaluation.engine_modifier }]
+            : [],
+        );
+        setDraftEvaluations(viewerIsBlue
+          ? { blue: visibleEvaluations, red: [] }
+          : { blue: [], red: visibleEvaluations });
       } catch (error) {
-        console.error("[MatchSimulation] draftEvaluation:failed", error);
+        console.error("[MatchSimulation] canonicalDraftEvaluation:failed", error);
       }
     }
+    setDraftPayload(payload);
     setStage("tactics");
-  }, [activeSnapshot]);
+  }, [activeSnapshot, gameState?.manager.team_id]);
 
   const handleContinueFromTactics = useCallback(() => {
     console.info("[MatchSimulation] handleContinueFromTactics");

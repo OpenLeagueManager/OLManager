@@ -93,4 +93,24 @@ describe("simulateDraftMatchResult", () => {
 
     expect(simulateDraftMatchResult(params)).toEqual(simulateDraftMatchResult(params));
   });
+
+  it("consumes the canonical relationship aggregate instead of legacy draft score", () => {
+    const neutral = simulateDraftMatchResult({ snapshot, gameState, draft, draftEvaluations: evaluations(70, 70), seedSalt: "canonical" });
+    const canonical = simulateDraftMatchResult({
+      snapshot,
+      gameState,
+      draft: {
+        ...draft,
+        canonical: {
+          pick_evaluations: [],
+          blue_relationship: { synergy: 0, counter: 0, total: 10, reasons: ["team synergy"] },
+          red_relationship: { synergy: 0, counter: 0, total: 0, reasons: [] },
+        },
+      },
+      draftEvaluations: evaluations(70, 70),
+      seedSalt: "canonical",
+    });
+
+    expect(canonical.power.blue).toBeGreaterThan(neutral.power.blue);
+  });
 });
