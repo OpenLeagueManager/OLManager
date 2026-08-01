@@ -212,9 +212,34 @@ fn build_engine_team_from(
         None => ("Unknown".into(), crate::engine::DraftStrategy::Balanced),
     };
 
-    let engine_players: Vec<crate::engine::PlayerData> = players
-        .iter()
-        .filter(|p| p.team_id.as_deref() == Some(team_id))
+    let mut lineup_ids = team
+        .map(|team| team.active_lineup_ids.clone())
+        .unwrap_or_default();
+    lineup_ids.retain(|id| {
+        players
+            .iter()
+            .any(|player| player.id == *id && player.team_id.as_deref() == Some(team_id))
+    });
+    if lineup_ids.len() < 5 {
+        let mut fallback_ids: Vec<String> = players
+            .iter()
+            .filter(|player| player.team_id.as_deref() == Some(team_id))
+            .map(|player| player.id.clone())
+            .collect();
+        fallback_ids.sort();
+        for player_id in fallback_ids {
+            if !lineup_ids.contains(&player_id) {
+                lineup_ids.push(player_id);
+            }
+            if lineup_ids.len() == 5 {
+                break;
+            }
+        }
+    }
+    let engine_players: Vec<crate::engine::PlayerData> = lineup_ids
+        .into_iter()
+        .take(5)
+        .filter_map(|player_id| players.iter().find(|player| player.id == player_id))
         .map(|p| crate::engine::PlayerData {
             id: p.id.clone(),
             name: p.match_name.clone(),
@@ -1341,9 +1366,14 @@ where
         }
     }
 
+    let draft = resolve_auto_draft(game, &home_team_id, &away_team_id);
     let home_data = build_engine_team(game, &home_team_id);
     let away_data = build_engine_team(game, &away_team_id);
-    let config = crate::engine::MatchConfig::default();
+    let config = crate::engine::MatchConfig {
+        home_draft_modifier: draft.home_modifier,
+        away_draft_modifier: draft.away_modifier,
+        ..Default::default()
+    };
     let report = if best_of <= 1 {
         let mut rng = rand::rng();
         crate::engine::simulate_lol(&home_data, &away_data, &config, &mut rng)
@@ -1356,7 +1386,7 @@ where
         home_name, report.home_wins, report.away_wins, away_name, idx
     );
 
-    let mastery_picks = auto_sim_mastery_picks(game, &home_team_id, &away_team_id);
+    let mastery_picks = draft.picks.clone();
     let winner_team_id = if report.home_wins == report.away_wins {
         if home_team_id <= away_team_id {
             home_team_id.clone()
@@ -1372,67 +1402,182 @@ where
         champions::apply_match_mastery_progress(game, &winner_team_id, &mastery_picks);
     }
 
-    apply_match_report_with_capture(game, idx, &home_team_id, &away_team_id, &report, on_capture);
+    post_match::apply_match_report_with_draft_capture(
+        game,
+        idx,
+        &home_team_id,
+        &away_team_id,
+        &report,
+        &draft.picks,
+        &draft.bans,
+        on_capture,
+    );
 }
 
-fn auto_sim_mastery_picks(
-    game: &Game,
-    home_team_id: &str,
-    away_team_id: &str,
-) -> Vec<(String, String)> {
-    let mut picks: Vec<(String, String)> = Vec::new();
+struct AutoDraft {
+    picks: Vec<(String, String)>,
+    bans: Vec<String>,
+    home_modifier: f64,
+    away_modifier: f64,
+}
 
-    for team_id in [home_team_id, away_team_id] {
-        let mut player_ids = game
-            .teams
+fn resolve_auto_draft(game: &Game, home_team_id: &str, away_team_id: &str) -> AutoDraft {
+    use crate::draft::{ChampionProfile, SkillDemandProfile, select_pick};
+    use std::collections::HashSet;
+    let profiles: Vec<ChampionProfile> = game
+        .champion_patch
+        .hidden_meta
+        .iter()
+        .filter_map(|meta| {
+            let role = match meta.role.to_ascii_lowercase().as_str() {
+                "top" => crate::domain::player::LolRole::Top,
+                "jungle" | "jgl" => crate::domain::player::LolRole::Jungle,
+                "mid" => crate::domain::player::LolRole::Mid,
+                "adc" | "bot" => crate::domain::player::LolRole::Adc,
+                "support" | "sup" => crate::domain::player::LolRole::Support,
+                _ => return None,
+            };
+            let meta_power = match meta.tier.to_ascii_uppercase().as_str() {
+                "S" => 90,
+                "A" => 75,
+                "B" => 60,
+                "C" => 45,
+                "D" => 30,
+                _ => 60,
+            };
+            Some(ChampionProfile {
+                champion_id: meta.champion_id.clone(),
+                role,
+                meta_power,
+                demands: SkillDemandProfile::for_champion(&meta.champion_id, role),
+            })
+        })
+        .collect();
+    let mut ban_candidates: Vec<_> = profiles.iter().collect();
+    ban_candidates.sort_by(|left, right| {
+        let threat = |profile: &&ChampionProfile| {
+            let mastery = game
+                .champion_masteries
+                .iter()
+                .filter(|entry| entry.champion_id.eq_ignore_ascii_case(&profile.champion_id))
+                .map(|entry| entry.mastery)
+                .max()
+                .unwrap_or(25);
+            u16::from(profile.meta_power) * 2 + u16::from(mastery)
+        };
+        threat(right)
+            .cmp(&threat(left))
+            .then_with(|| left.champion_id.cmp(&right.champion_id))
+    });
+    // Preserve two legal options per role for the two opposing starters before banning.
+    let mut bans = Vec::new();
+    for candidate in ban_candidates {
+        if bans.len() == 10 {
+            break;
+        }
+        let remaining_for_role = profiles
             .iter()
-            .find(|team| team.id == *team_id)
+            .filter(|profile| {
+                profile.role == candidate.role && !bans.contains(&profile.champion_id)
+            })
+            .count();
+        if remaining_for_role > 2 {
+            bans.push(candidate.champion_id.clone());
+        }
+    }
+    let mut unavailable: HashSet<String> = bans.iter().cloned().collect();
+    let mut picks = Vec::new();
+    let mut modifiers = [0.0; 2];
+    for (team_index, team_id) in [home_team_id, away_team_id].iter().enumerate() {
+        let team = game.teams.iter().find(|team| team.id == **team_id);
+        let mut ids = team
             .map(|team| team.active_lineup_ids.clone())
             .unwrap_or_default();
-
-        if player_ids.len() < 5 {
+        ids.retain(|id| {
+            game.players
+                .iter()
+                .any(|player| player.id == *id && player.team_id.as_deref() == Some(*team_id))
+        });
+        if ids.len() < 5 {
             let mut fallback_ids: Vec<String> = game
                 .players
                 .iter()
-                .filter(|player| player.team_id.as_deref() == Some(team_id))
+                .filter(|player| player.team_id.as_deref() == Some(*team_id))
                 .map(|player| player.id.clone())
                 .collect();
             fallback_ids.sort();
             for player_id in fallback_ids {
-                if !player_ids.contains(&player_id) {
-                    player_ids.push(player_id);
+                if !ids.contains(&player_id) {
+                    ids.push(player_id);
                 }
-                if player_ids.len() >= 5 {
+                if ids.len() == 5 {
                     break;
                 }
             }
         }
-
-        for player_id in player_ids.into_iter().take(5) {
-            let champion_id = game
-                .players
+        for player_id in ids.into_iter().take(5) {
+            let Some(player) = game.players.iter().find(|player| player.id == player_id) else {
+                continue;
+            };
+            let candidates: Vec<ChampionProfile> = profiles
                 .iter()
-                .find(|player| player.id == player_id)
-                .and_then(|player| {
-                    champions::training_targets_for_player(player)
-                        .into_iter()
-                        .find(|target| !target.trim().is_empty())
+                .filter(|profile| profile.role == player.natural_position)
+                .cloned()
+                .collect();
+            let fallback: Vec<ChampionProfile> = game
+                .champion_masteries
+                .iter()
+                .filter(|entry| entry.player_id == player.id)
+                .map(|entry| ChampionProfile {
+                    champion_id: entry.champion_id.clone(),
+                    role: player.natural_position,
+                    meta_power: 60,
+                    demands: SkillDemandProfile::for_champion(
+                        &entry.champion_id,
+                        player.natural_position,
+                    ),
                 })
-                .or_else(|| {
-                    game.champion_masteries
-                        .iter()
-                        .filter(|entry| entry.player_id == player_id)
-                        .max_by_key(|entry| entry.mastery)
-                        .map(|entry| entry.champion_id.clone())
-                });
-
-            if let Some(champion_id) = champion_id {
-                picks.push((player_id, champion_id));
+                .chain(
+                    crate::champions::training_targets_for_player(player)
+                        .into_iter()
+                        .filter(|id| !id.trim().is_empty())
+                        .map(|champion_id| ChampionProfile {
+                            demands: SkillDemandProfile::for_champion(
+                                &champion_id,
+                                player.natural_position,
+                            ),
+                            champion_id,
+                            role: player.natural_position,
+                            meta_power: 60,
+                        }),
+                )
+                .collect();
+            let candidate_set = if candidates.is_empty() {
+                &fallback
+            } else {
+                &candidates
+            };
+            let mastery: Vec<(String, u8)> = game
+                .champion_masteries
+                .iter()
+                .filter(|entry| entry.player_id == player.id)
+                .map(|entry| (entry.champion_id.clone(), entry.mastery))
+                .collect();
+            if let Some(evaluation) =
+                select_pick(&player.attributes, &mastery, candidate_set, &unavailable)
+            {
+                unavailable.insert(evaluation.champion_id.clone());
+                modifiers[team_index] += evaluation.engine_modifier;
+                picks.push((player.id.clone(), evaluation.champion_id));
             }
         }
     }
-
-    picks
+    AutoDraft {
+        picks,
+        bans,
+        home_modifier: (modifiers[0] / 5.0).clamp(-0.035, 0.035),
+        away_modifier: (modifiers[1] / 5.0).clamp(-0.035, 0.035),
+    }
 }
 
 fn simulate_series(
@@ -1646,6 +1791,75 @@ mod tests {
         }
 
         (game, today.to_string())
+    }
+
+    #[test]
+    fn auto_draft_is_pre_match_legal_and_captured_in_stats() {
+        let (mut game, _) = bg_test_game("2025-06-15");
+        let roles = [
+            LolRole::Top,
+            LolRole::Jungle,
+            LolRole::Mid,
+            LolRole::Adc,
+            LolRole::Support,
+        ];
+        for (index, player) in game.players.iter_mut().enumerate() {
+            player.natural_position = roles[index % roles.len()];
+            player.position = player.natural_position;
+        }
+        game.champion_patch.hidden_meta = roles
+            .iter()
+            .flat_map(|role| {
+                let name = format!("{:?}", role).to_ascii_lowercase();
+                (0..4).map(move |index| crate::champions::ChampionMetaEntry {
+                    champion_id: format!("{name}-{index}"),
+                    role: name.clone(),
+                    tier: if index == 0 { "S" } else { "A" }.to_string(),
+                })
+            })
+            .collect();
+        for team in &mut game.teams {
+            team.active_lineup_ids = game
+                .players
+                .iter()
+                .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
+                .take(5)
+                .map(|player| player.id.clone())
+                .collect();
+        }
+        let draft = resolve_auto_draft(&game, "team1", "team2");
+        assert_eq!(draft.picks.len(), 10);
+        assert_eq!(draft.bans.len(), 10);
+        assert!(
+            draft
+                .bans
+                .iter()
+                .all(|ban| !draft.picks.iter().any(|(_, pick)| pick == ban))
+        );
+        assert_eq!(
+            draft
+                .picks
+                .iter()
+                .map(|(_, champion)| champion)
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            10
+        );
+        let mut capture = StatsState::default();
+        simulate_single_match_with_capture(&mut game, 0, &mut |stats| capture = stats);
+        assert_eq!(capture.player_matches.len(), 10);
+        assert!(
+            capture
+                .player_matches
+                .iter()
+                .all(|record| record.champion.is_some())
+        );
+        assert!(
+            capture
+                .player_matches
+                .iter()
+                .all(|record| record.bans_json.contains("top-"))
+        );
     }
 
     // -----------------------------------------------------------------------

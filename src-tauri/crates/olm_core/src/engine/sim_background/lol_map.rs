@@ -595,6 +595,11 @@ impl LiveMatchState {
             let defense_mult = 1.4 - victim_cond * 0.4; // 1.0–1.4
 
             let scale = 1.0 + (level.saturating_sub(1) as f64) * 0.06 + items as f64 * 0.10;
+            let draft_multiplier = 1.0
+                + match side {
+                    Side::Home => self.config.home_draft_modifier,
+                    Side::Away => self.config.away_draft_modifier,
+                };
             let damage = role_power(role)
                 * scale
                 * game_damage_scale(minute, self.config.late_game_damage_scale)
@@ -602,6 +607,7 @@ impl LiveMatchState {
                 * (1.0 - best_dist / 0.095).clamp(0.45, 1.0)
                 * attack_mult
                 * defense_mult;
+            let damage = damage * draft_multiplier.clamp(0.965, 1.035);
 
             incoming[victim] += damage;
             if let Some(attacker) = self.lol_map.units.get_mut(i) {

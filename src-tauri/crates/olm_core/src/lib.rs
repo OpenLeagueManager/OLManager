@@ -13,6 +13,7 @@ pub mod db;
 pub mod delegated_renewals;
 pub mod dispatch;
 pub mod domain;
+pub mod draft;
 pub mod end_of_season;
 pub mod engine;
 pub mod finances;

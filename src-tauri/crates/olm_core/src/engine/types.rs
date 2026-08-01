@@ -164,6 +164,10 @@ pub struct MatchConfig {
     /// Late-game combat scaling cap.
     #[serde(default = "default_late_game_damage_scale")]
     pub late_game_damage_scale: f64,
+    #[serde(default)]
+    pub home_draft_modifier: f64,
+    #[serde(default)]
+    pub away_draft_modifier: f64,
 }
 
 impl Default for MatchConfig {
@@ -176,6 +180,8 @@ impl Default for MatchConfig {
             structure_damage_min: default_structure_damage_min(),
             structure_damage_max: default_structure_damage_max(),
             late_game_damage_scale: default_late_game_damage_scale(),
+            home_draft_modifier: 0.0,
+            away_draft_modifier: 0.0,
         }
     }
 }

@@ -284,6 +284,7 @@ pub fn run() {
             get_season_awards,
             resolve_message_action,
             start_live_match,
+            evaluate_draft_pick,
             get_player_match_history,
             get_player_stats_overview,
             get_team_match_history,

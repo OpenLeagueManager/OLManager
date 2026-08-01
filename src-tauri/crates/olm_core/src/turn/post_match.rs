@@ -124,6 +124,30 @@ pub fn apply_match_report_with_capture<F>(
 ) where
     F: FnMut(StatsState),
 {
+    apply_match_report_with_draft_capture(
+        game,
+        fixture_index,
+        home_team_id,
+        away_team_id,
+        report,
+        &[],
+        &[],
+        on_capture,
+    );
+}
+
+pub fn apply_match_report_with_draft_capture<F>(
+    game: &mut Game,
+    fixture_index: usize,
+    home_team_id: &str,
+    away_team_id: &str,
+    report: &crate::engine::MatchReport,
+    picks: &[(String, String)],
+    bans: &[String],
+    on_capture: &mut F,
+) where
+    F: FnMut(StatsState),
+{
     debug!(
         "[turn] apply_match_report: fixture #{}, result {} - {}",
         fixture_index, report.home_wins, report.away_wins
@@ -170,6 +194,8 @@ pub fn apply_match_report_with_capture<F>(
         home_team_id,
         away_team_id,
         report,
+        picks,
+        bans,
     ));
 
     // Update player season stats from the engine report
@@ -269,6 +295,8 @@ fn build_stats_state_capture(
     home_team_id: &str,
     away_team_id: &str,
     report: &crate::engine::MatchReport,
+    picks: &[(String, String)],
+    bans: &[String],
 ) -> StatsState {
     let Some(league) = game.active_league() else {
         return StatsState::default();
@@ -287,8 +315,11 @@ fn build_stats_state_capture(
                 .map(|team_id| (player.id.as_str(), team_id))
         })
         .collect();
-    let champion_by_player_id: std::collections::HashMap<&str, &str> =
-        std::collections::HashMap::new();
+    let champion_by_player_id: std::collections::HashMap<&str, &str> = picks
+        .iter()
+        .map(|(player_id, champion_id)| (player_id.as_str(), champion_id.as_str()))
+        .collect();
+    let bans_json = serde_json::to_string(bans).unwrap_or_default();
 
     let player_matches = report
         .player_stats
@@ -330,7 +361,7 @@ fn build_stats_state_capture(
                 damage_dealt: stats.damage_dealt,
                 vision_score: stats.vision_score,
                 wards_placed: stats.wards_placed,
-                bans_json: String::new(),
+                bans_json: bans_json.clone(),
             })
         })
         .collect();

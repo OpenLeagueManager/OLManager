@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { MatchSnapshot } from "@/ui-v2/_legacy/components/match/types";
 import type { GameStateData, ScrimReportData } from "@/store/gameStore";
@@ -72,6 +73,14 @@ interface DraftScoreBreakdown {
   counter: number;
   comfort: number;
   preparation: number;
+  total: number;
+}
+
+interface DraftPickEvaluation {
+  meta_power: number;
+  mastery: number;
+  skill_fit: number;
+  execution_risk: number;
   total: number;
 }
 
@@ -756,6 +765,7 @@ export default function ChampionDraft({
   const [blueRoleOrder, setBlueRoleOrder] = useState<number[] | null>(null);
   const [redRoleOrder, setRedRoleOrder] = useState<number[] | null>(null);
   const [pendingChampionId, setPendingChampionId] = useState<string | null>(null);
+  const [pendingEvaluation, setPendingEvaluation] = useState<DraftPickEvaluation | null>(null);
   const [swapSource, setSwapSource] = useState<{ side: Side; index: number } | null>(null);
   const [draftHistory, setDraftHistory] = useState<string[]>([]);
   const [turnDurationMs, setTurnDurationMs] = useState<number>(AI_TIMING.userTurnMs);
@@ -881,6 +891,20 @@ export default function ChampionDraft({
   };
 
   const isUserTurn = !!currentStep && !allAi && currentStep.side === controlledSide && !finished;
+
+  useEffect(() => {
+    if (!pendingChampionId || currentStep?.type !== "pick") {
+      setPendingEvaluation(null);
+      return;
+    }
+    const playerId = currentStep.side === "blue" ? bluePlayerIds[bluePicks.length] : redPlayerIds[redPicks.length];
+    if (!playerId) return;
+    let active = true;
+    invoke<DraftPickEvaluation>("evaluate_draft_pick", { playerId, championId: pendingChampionId })
+      .then((evaluation) => { if (active) setPendingEvaluation(evaluation); })
+      .catch(() => { if (active) setPendingEvaluation(null); });
+    return () => { active = false; };
+  }, [bluePicks.length, bluePlayerIds, currentStep?.side, currentStep?.type, pendingChampionId, redPicks.length, redPlayerIds]);
 
   const totalSteps = DRAFT_SEQUENCE.length;
   const currentStepNumber = Math.min(stepIndex + 1, totalSteps);
@@ -3024,6 +3048,14 @@ export default function ChampionDraft({
                   </button>
                 </div>
               ) : null}
+              {pendingEvaluation ? (
+                <div className="relative grid grid-cols-4 gap-1 rounded-md border border-orange-500/30 bg-orange-500/5 px-2 py-1.5 text-2xs">
+                  <span>Meta {pendingEvaluation.meta_power}</span>
+                  <span>Mastery {pendingEvaluation.mastery}</span>
+                  <span>Skill fit {pendingEvaluation.skill_fit}</span>
+                  <span className="text-orange-300">Risk {pendingEvaluation.execution_risk}</span>
+                </div>
+              ) : null}
 
                 <div className="relative min-h-0 flex-1 overflow-y-auto scrollbar-draft pr-1">
                 {loading ? (
@@ -3345,6 +3377,5 @@ function DraftSlot({
     </div>
   );
 }
-
 
 

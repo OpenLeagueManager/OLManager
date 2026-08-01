@@ -280,6 +280,28 @@ function normalizeDraftPayload(
   };
 }
 
+export function draftPicksByPlayerRole(
+  players: Array<{ id: string; role?: string }>,
+  picks: Array<{ role: "TOP" | "JUNGLE" | "MID" | "ADC" | "SUPPORT"; championId: string }>,
+): Array<{ playerId: string; championId: string }> {
+  const roleForPlayer = (role: string | undefined): string => {
+    const normalized = (role ?? "").toUpperCase();
+    if (normalized.includes("JUNG")) return "JUNGLE";
+    if (normalized.includes("ADC") || normalized.includes("BOT")) return "ADC";
+    if (normalized.includes("SUP")) return "SUPPORT";
+    if (normalized.includes("TOP")) return "TOP";
+    return "MID";
+  };
+  const used = new Set<string>();
+  return picks.flatMap((pick) => {
+    const player = players.find((candidate) => !used.has(candidate.id) && roleForPlayer(candidate.role) === pick.role)
+      ?? players.find((candidate) => !used.has(candidate.id));
+    if (!player) return [];
+    used.add(player.id);
+    return [{ playerId: player.id, championId: pick.championId }];
+  });
+}
+
 function parseRuntimeEventSide(text: string | undefined): "blue" | "red" | null {
   const upper = (text ?? "").toUpperCase();
   if (upper.includes("BLUE")) return "blue";
@@ -1307,13 +1329,32 @@ export default function MatchSimulation() {
         hasUpdatedGame: !!response.game,
       });
       setGameState(response.game);
+      const fixtureId = currentFixture?.id;
+      const draft = normalizeDraftPayload(draftPayload, championSelections, renderSnapshotWithTactics ?? snapshot ?? null);
+      const draftSnapshot = renderSnapshotWithTactics ?? snapshot;
+      if (fixtureId && draft && draftSnapshot && lolReport?.winner) {
+        const winnerTeamId = lolReport.winner === "blue"
+          ? draftSnapshot.home_team.id
+          : draftSnapshot.away_team.id;
+        const picks = [
+          ...draftPicksByPlayerRole(draftSnapshot.home_team.players, draft.blue.picks),
+          ...draftPicksByPlayerRole(draftSnapshot.away_team.players, draft.red.picks),
+        ];
+        const updated = await invoke<GameStateData>("record_fixture_champion_picks", {
+          fixtureId,
+          winnerTeamId,
+          picks,
+          bans: [...draft.blue.bans, ...draft.red.bans],
+        });
+        setGameState(updated);
+      }
       setHasFinalizedMatch(true);
       return true;
     } catch (err) {
       console.error("Failed to finish match:", err);
       return false;
     }
-  }, [hasFinalizedMatch, setGameState]);
+  }, [championSelections, currentFixture?.id, draftPayload, hasFinalizedMatch, renderSnapshotWithTactics, setGameState, snapshot]);
 
   const handleFullTime = useCallback((finalRuntimeState: LolSimV1RuntimeState, meta?: { source: "live" | "skip"; precomputedResult?: DraftMatchResult }) => {
     console.info("[MatchSimulation] handleFullTime");
@@ -1426,33 +1467,6 @@ export default function MatchSimulation() {
         finalResult.winnerSide === "blue"
           ? snapshotForResult.home_team.id
           : snapshotForResult.away_team.id;
-
-      const masteryPicks = [
-        ...(draftPayload?.blue.picks ?? []).map((pick, idx) => ({
-          playerId: snapshotForResult.home_team.players[idx]?.id ?? "",
-          championId: pick.championId,
-        })),
-        ...(draftPayload?.red.picks ?? []).map((pick, idx) => ({
-          playerId: snapshotForResult.away_team.players[idx]?.id ?? "",
-          championId: pick.championId,
-        })),
-      ].filter((entry) => entry.playerId.length > 0 && entry.championId.length > 0);
-
-      if (masteryPicks.length > 0) {
-        void (async () => {
-          try {
-            const updated = await invoke<GameStateData>("apply_champion_mastery_from_draft", {
-              winnerTeamId,
-              picks: masteryPicks,
-            });
-            if (updated) {
-              setGameState(updated);
-            }
-          } catch (error) {
-            console.error("[MatchSimulation] apply_champion_mastery_from_draft failed", error);
-          }
-        })();
-      }
 
       homeSeriesWins = Math.min(
         targetSeriesWins,
@@ -1995,4 +2009,3 @@ export default function MatchSimulation() {
     );
   }
 }
-
