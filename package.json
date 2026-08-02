@@ -4,8 +4,10 @@
   "version": "0.3.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "verify:champion-timings": "node scripts/verify-champion-timings.mjs",
+    "verify:champion-relationships": "node scripts/verify-champion-relationships.mjs",
+    "dev": "npm run verify:champion-timings && npm run verify:champion-relationships && vite",
+    "build": "npm run verify:champion-timings && npm run verify:champion-relationships && vite build",
     "build:types": "tsc -p tsconfig.release.json",
     "preview": "vite preview",
     "generate:splash-manifest": "tsx scripts/generate-splash-manifest.ts",

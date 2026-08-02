@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "node scripts/sync-data.mjs && npm run dev",
     "devUrl": "http://127.0.0.1:1420",
-    "beforeBuildCommand": "npm run build && node scripts/sync-data.mjs",
+    "beforeBuildCommand": "node scripts/sync-data.mjs && npm run build",
     "frontendDist": "../dist"
   },
   "app": {

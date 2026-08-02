@@ -5,6 +5,7 @@ import type { MatchSnapshot } from "@/ui-v2/_legacy/components/match/types";
 import type { GameStateData, ScrimReportData } from "@/store/gameStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { getChampionTiming } from "@/lib/champions/championTiming";
+import { getChampionCounterValue } from "@/lib/champions/championRelationships";
 import { getLolStaffEffectsForTeam } from "@/lib/teams/lolStaffEffects";
 import { resolvePlayerLolRole } from "@/lib/players/lolIdentity";
 import { ROLE_ICON_PATHS } from "@/lib/players/roleIcons";
@@ -209,7 +210,6 @@ export function selectStaffRevealEntries(
 interface ChampionsSeed {
   data?: {
     roles?: Record<string, string[]>;
-    counterpicks?: Array<{ a: string; b: string; value: number }>;
   };
 }
 
@@ -582,14 +582,6 @@ Object.entries(CHAMPIONS_SEED.data?.roles ?? {}).forEach(([championName, roles])
   }
 });
 
-const CHAMPION_COUNTER_VALUES = new Map<string, number>();
-(CHAMPIONS_SEED.data?.counterpicks ?? []).forEach(({ a, b, value }) => {
-  const left = normalizeKey(a);
-  const right = normalizeKey(b);
-  if (!left || !right) return;
-  CHAMPION_COUNTER_VALUES.set(`${left}::${right}`, Number(value) || 0);
-});
-
 function inferRoleHintsFromSeed(championId: string, championName: string, tags: string[]): Role[] {
   const seedRolesById = CHAMPION_ROLE_HINTS.get(normalizeKey(championId));
   if (seedRolesById && seedRolesById.length > 0) return seedRolesById;
@@ -681,8 +673,7 @@ export function calculateScrimDraftSignal(
 }
 
 function counterValue(allyChampionId: string, enemyChampionId: string): number {
-  const key = `${normalizeKey(allyChampionId)}::${normalizeKey(enemyChampionId)}`;
-  return CHAMPION_COUNTER_VALUES.get(key) ?? 0;
+  return getChampionCounterValue(allyChampionId, enemyChampionId);
 }
 
 function teamTriCode(name: string): string {

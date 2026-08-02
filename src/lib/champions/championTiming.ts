@@ -1,10 +1,16 @@
-import championTimings from "../../../assets/simulation/champion-timings.json";
+import championTimings from "../../../data/champions/champion-timings.v1.json";
 
 export type ChampionTiming = "Early" | "Mid" | "Late" | "Unknown";
 export type TeamTimingPreference = "Early" | "Mid" | "Late";
 
-const TIMING_BY_CHAMPION =
-  (championTimings as { data?: Record<string, ChampionTiming> }).data ?? {};
+interface ChampionTimingDataset {
+  schemaVersion: 2;
+  dataset: "champion-timings";
+  defaultTiming: "Unknown";
+  data: Record<string, { timing: ChampionTiming }>;
+}
+
+const TIMING_BY_CHAMPION = (championTimings as ChampionTimingDataset).data;
 
 const FIT_MATRIX: Record<TeamTimingPreference, Record<ChampionTiming, number>> = {
   Early: { Early: 1, Mid: 0.25, Late: -1, Unknown: 0 },
@@ -14,7 +20,7 @@ const FIT_MATRIX: Record<TeamTimingPreference, Record<ChampionTiming, number>> =
 
 export function getChampionTiming(championId: string | null | undefined): ChampionTiming {
   if (!championId) return "Unknown";
-  return TIMING_BY_CHAMPION[championId] ?? "Unknown";
+  return TIMING_BY_CHAMPION[championId]?.timing ?? "Unknown";
 }
 
 export function computeTeamTimingFit(params: {
