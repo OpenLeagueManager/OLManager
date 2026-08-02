@@ -231,7 +231,7 @@ mod tests {
         let json = serde_json::to_string(&payload).unwrap();
         let deserialized: DiscordActivityPayload = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.state, "Managing Squad");
-        assert_eq!(deserialized.details, "OLManager");
+        assert_eq!(deserialized.details, "Setting lineups and roles");
     }
 
     #[test]
@@ -263,7 +263,7 @@ mod tests {
     fn test_payload_unknown_key_falls_back_to_playing() {
         let payload = state_key_to_payload("nonexistent_route");
         assert_eq!(payload.state, "Playing");
-        assert_eq!(payload.details, "OLManager");
+        assert_eq!(payload.details, "Open League Manager");
     }
 
     #[test]
@@ -344,7 +344,7 @@ mod tests {
         );
         assert_eq!(
             json.get("details").and_then(|v| v.as_str()),
-            Some("OLManager")
+            Some("Setting lineups and roles")
         );
         assert!(json.get("timestamps").is_some());
         assert!(json.get("assets").is_some());

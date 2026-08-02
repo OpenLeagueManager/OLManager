@@ -115,7 +115,7 @@ pub fn eligible_academy_acquisition_options(
     leagues: &[ErlLeagueDefinition],
     candidates: &[ErlAcademyCandidate],
 ) -> Vec<AcademyAcquisitionOption> {
-    candidates
+    let mut options: Vec<_> = candidates
         .iter()
         .filter_map(|candidate| {
             let league = leagues
@@ -143,7 +143,19 @@ pub fn eligible_academy_acquisition_options(
                 acquisition_cost: acquisition_cost_for_candidate(candidate),
             })
         })
-        .collect()
+        .collect();
+
+    // Filesystem enumeration feeds this catalog, so expose a product-defined order.
+    options.sort_by(|left, right| {
+        let left_domestic = left.assignment_rule == ErlAssignmentRule::Domestic;
+        let right_domestic = right.assignment_rule == ErlAssignmentRule::Domestic;
+        right_domestic
+            .cmp(&left_domestic)
+            .then_with(|| left.erl_league_id.cmp(&right.erl_league_id))
+            .then_with(|| left.name.cmp(&right.name))
+            .then_with(|| left.source_team_id.cmp(&right.source_team_id))
+    });
+    options
 }
 
 pub fn eligible_academy_creation_options(

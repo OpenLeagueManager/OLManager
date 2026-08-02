@@ -83,6 +83,29 @@ fn acquisition_options_include_candidates_from_all_configured_erl_leagues() {
 }
 
 #[test]
+fn acquisition_options_order_domestic_candidates_by_league_then_name() {
+    let options = eligible_academy_acquisition_options(
+        "ES",
+        &[
+            erl("lfl", "FR", "western", 5, &[]),
+            erl("superliga", "ES", "western", 4, &[]),
+            erl("les", "ES", "western", 4, &[]),
+        ],
+        &[
+            candidate("foreign", "lfl", "FR", 5, 4),
+            candidate("zeta", "superliga", "ES", 4, 3),
+            candidate("alpha", "les", "ES", 4, 3),
+        ],
+    );
+
+    let ids: Vec<_> = options
+        .iter()
+        .map(|option| option.source_team_id.as_str())
+        .collect();
+    assert_eq!(ids, ["alpha", "zeta", "foreign"]);
+}
+
+#[test]
 #[ignore = "legacy: academy ERL assignment rules changed in LoL migration (see #92)"]
 fn assignment_rule_marks_domestic_vs_cross_country_candidates_in_open_pool() {
     let options = eligible_academy_acquisition_options(
