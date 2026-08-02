@@ -131,29 +131,11 @@ export function MetaTabV2({ gameState, onViewChampion, onGameUpdate }: MetaTabV2
   }, [discoveredMeta]);
 
   const discoveredPct = useMemo(() => {
-    const totalChampionKeys = new Set(
-      (patch?.hidden_meta ?? []).map((entry) => normalizeKey(entry.champion_id)),
-    );
+    const totalChampionKeys = new Set((gameState.champions ?? []).map((champion) => normalizeKey(champion.champion_key)));
     if (totalChampionKeys.size === 0) return 0;
     const discoveredCount = [...discoveredSet].filter((key) => totalChampionKeys.has(key)).length;
     return Math.round((discoveredCount / totalChampionKeys.size) * 100);
-  }, [patch?.hidden_meta, discoveredSet]);
-
-  const discoveryPerTier = useMemo(() => {
-    const byTier: Record<string, { total: Set<string>; discovered: Set<string> }> = { S: { total: new Set(), discovered: new Set() }, A: { total: new Set(), discovered: new Set() }, B: { total: new Set(), discovered: new Set() }, C: { total: new Set(), discovered: new Set() }, D: { total: new Set(), discovered: new Set() } };
-    (patch?.hidden_meta ?? []).forEach((entry) => {
-      const tier = (entry.tier || "C").toUpperCase();
-      if (!byTier[tier]) return;
-      const key = normalizeKey(entry.champion_id);
-      byTier[tier].total.add(key);
-      if (discoveredSet.has(key)) byTier[tier].discovered.add(key);
-    });
-    const result: Record<string, { total: number; discovered: number }> = {};
-    TIER_ORDER.forEach((t) => {
-      result[t] = { total: byTier[t].total.size, discovered: byTier[t].discovered.size };
-    });
-    return result;
-  }, [patch?.hidden_meta, discoveredSet]);
+  }, [discoveredSet, gameState.champions]);
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-6 scrollbar-v2">
@@ -276,25 +258,16 @@ export function MetaTabV2({ gameState, onViewChampion, onGameUpdate }: MetaTabV2
           <CardContent className="flex min-h-0 flex-1 flex-col">
             <div className="flex flex-1 flex-col justify-between gap-2">
               {TIER_ORDER.map((tier) => {
-                const stats = discoveryPerTier[tier];
-                const pct = stats.total > 0 ? Math.round((stats.discovered / stats.total) * 100) : 0;
+                const discovered = tierRows[tier].length;
                 return (
                   <div key={tier}>
                     <div className="mb-1 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className={cn("inline-flex size-5 items-center justify-center rounded text-[10px] font-heading font-bold", TIER_BADGE_CLASS[tier])}>{tier}</span>
                         <span className="text-xs text-muted-foreground">
-                          {stats.discovered}/{stats.total}
+                          {discovered} discovered
                         </span>
                       </div>
-                      <span className="font-heading text-xs tabular-nums text-muted-foreground">{pct}%</span>
-                    </div>
-                    <div className="relative h-2 overflow-hidden rounded-full">
-                      <div className="absolute inset-0 rounded-full" style={{ background: 'linear-gradient(to right, #ef4444, #f59e0b 25%, #22c55e 50%)' }} />
-                      <div
-                        className="absolute inset-y-0 right-0 bg-muted transition-all duration-500"
-                        style={{ width: `${100 - pct}%` }}
-                      />
                     </div>
                   </div>
                 );

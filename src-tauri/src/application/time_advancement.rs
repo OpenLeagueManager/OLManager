@@ -235,7 +235,7 @@ pub fn advance_time_with_mode(
 
             Ok(AdvanceTimeWithModeResponse {
                 action: "advanced".to_string(),
-                game: Some(game),
+                game: Some(crate::client_game::game_for_client(&game)),
                 snapshot: None,
                 fixture_index: None,
                 mode: None,
@@ -248,7 +248,7 @@ pub fn advance_time_with_mode(
                     state.set_game(game.clone());
                     return Ok(AdvanceTimeWithModeResponse {
                         action: "blocked_scrim_setup".to_string(),
-                        game: Some(game),
+                        game: Some(crate::client_game::game_for_client(&game)),
                         snapshot: None,
                         fixture_index: None,
                         mode: None,
@@ -266,7 +266,7 @@ pub fn advance_time_with_mode(
                     state.set_game(game.clone());
                     return Ok(AdvanceTimeWithModeResponse {
                         action: "blocked_scrim_decision".to_string(),
-                        game: Some(game),
+                        game: Some(crate::client_game::game_for_client(&game)),
                         snapshot: None,
                         fixture_index: None,
                         mode: None,
@@ -278,7 +278,7 @@ pub fn advance_time_with_mode(
                 state.set_game(game.clone());
                 return Ok(AdvanceTimeWithModeResponse {
                     action: "phase_advanced".to_string(),
-                    game: Some(game),
+                    game: Some(crate::client_game::game_for_client(&game)),
                     snapshot: None,
                     fixture_index: None,
                     mode: None,
@@ -307,7 +307,7 @@ pub fn advance_time_with_mode(
 
             Ok(AdvanceTimeWithModeResponse {
                 action: "advanced".to_string(),
-                game: Some(game),
+                game: Some(crate::client_game::game_for_client(&game)),
                 snapshot: None,
                 fixture_index: None,
                 mode: None,

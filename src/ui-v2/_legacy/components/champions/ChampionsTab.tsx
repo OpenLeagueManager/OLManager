@@ -372,12 +372,12 @@ export default function ChampionsTab({ gameState, onGameUpdate, onViewChampion }
   }, [discoveredMeta]);
 
   const discoveredPct = useMemo(() => {
-    const totalChampionKeys = new Set((patch?.hidden_meta ?? []).map((entry) => normalizeKey(entry.champion_id)));
+    const totalChampionKeys = new Set((gameState.champions ?? []).map((champion) => normalizeKey(champion.champion_key)));
     if (totalChampionKeys.size === 0) return 0;
 
     const discoveredCount = [...discoveredSet].filter((key) => totalChampionKeys.has(key)).length;
     return Math.round((discoveredCount / totalChampionKeys.size) * 100);
-  }, [patch?.hidden_meta, discoveredSet]);
+  }, [discoveredSet, gameState.champions]);
 
   async function handleTrainingTargetChange(
     playerId: string,
@@ -708,5 +708,4 @@ export default function ChampionsTab({ gameState, onGameUpdate, onViewChampion }
     </div>
   );
 }
-
 

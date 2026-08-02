@@ -54,7 +54,7 @@ fn toggle_transfer_list_internal(state: &StateManager, player_id: &str) -> Resul
         return Err("Player not found".into());
     }
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -74,7 +74,7 @@ fn toggle_loan_list_internal(state: &StateManager, player_id: &str) -> Result<Ga
         return Err("Player not found".into());
     }
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -120,7 +120,10 @@ fn make_transfer_bid_internal(
     )?;
     state.set_game(game.clone());
 
-    Ok(map_transfer_negotiation_response(result, game))
+    Ok(map_transfer_negotiation_response(
+        result,
+        crate::client_game::game_for_client(&game),
+    ))
 }
 
 #[tauri::command]
@@ -189,7 +192,7 @@ fn respond_to_offer_internal(
 
     olm_core::transfers::respond_to_offer(&mut game, player_id, offer_id, accept)?;
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -236,7 +239,10 @@ fn counter_offer_internal(
     )?;
     state.set_game(game.clone());
 
-    Ok(map_transfer_negotiation_response(result, game))
+    Ok(map_transfer_negotiation_response(
+        result,
+        crate::client_game::game_for_client(&game),
+    ))
 }
 
 fn map_transfer_negotiation_response(
@@ -248,7 +254,7 @@ fn map_transfer_negotiation_response(
         suggested_fee: outcome.suggested_fee,
         is_terminal: outcome.is_terminal,
         feedback: outcome.feedback,
-        game,
+        game: crate::client_game::game_for_client(&game),
     }
 }
 
@@ -313,7 +319,7 @@ pub fn send_scout(
 
     olm_core::scouting::send_scout(&mut game, &scout_id, &player_id)?;
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -328,7 +334,7 @@ pub fn release_player_contract(
 
     olm_core::transfers::release_player_contract(&mut game, &player_id)?;
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -344,7 +350,7 @@ pub fn get_transfer_history_cmd(
 #[cfg(test)]
 mod tests {
     use super::{
-        counter_offer_internal, make_transfer_bid_internal,
+        counter_offer_internal, make_transfer_bid_internal, negotiate_player_wage_internal,
         preview_transfer_bid_financial_impact_internal, respond_to_offer_internal,
         toggle_loan_list_internal, toggle_transfer_list_internal,
     };
@@ -552,10 +558,14 @@ mod tests {
             .expect("response");
 
         assert_eq!(response.decision, TransferNegotiationDecision::Accepted);
-        assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-2"));
+        assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-1"));
         assert_eq!(
             response.game.players[0].transfer_offers[0].status,
             TransferOfferStatus::Accepted
+        );
+        assert_eq!(
+            response.game.players[0].transfer_offers[0].wage_negotiation_status,
+            WageNegotiationStatus::Pending
         );
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
@@ -566,7 +576,32 @@ mod tests {
                 .find(|player| player.id == "player-1")
                 .and_then(|player| player.team_id.clone())
                 .as_deref(),
-            Some("team-2")
+            Some("team-1")
+        );
+    }
+
+    #[test]
+    fn negotiate_player_wage_internal_completes_accepted_transfer() {
+        let state = StateManager::new();
+        state.set_game(make_game());
+
+        counter_offer_internal(&state, "player-1", "offer-1", 1_050_000, &[])
+            .expect("accepted club offer");
+        let response = negotiate_player_wage_internal(&state, "player-1", "offer-1", 1_000_000, 3)
+            .expect("accepted wage offer");
+
+        assert_eq!(response.decision, TransferNegotiationDecision::Accepted);
+        assert!(response.is_terminal);
+        let player = response
+            .game
+            .players
+            .iter()
+            .find(|player| player.id == "player-1")
+            .expect("transferred player");
+        assert_eq!(player.team_id.as_deref(), Some("team-2"));
+        assert_eq!(
+            player.transfer_offers[0].wage_negotiation_status,
+            WageNegotiationStatus::Agreed
         );
     }
 

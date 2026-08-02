@@ -25,7 +25,7 @@ fn mark_message_read_internal(state: &StateManager, message_id: &str) -> Result<
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -42,7 +42,7 @@ fn delete_message_internal(state: &StateManager, message_id: &str) -> Result<Gam
     game.messages.retain(|message| message.id != message_id);
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -67,7 +67,7 @@ fn delete_messages_internal(
         .retain(|message| !message_ids.contains(&message.id));
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -86,7 +86,7 @@ fn mark_all_messages_read_internal(state: &StateManager) -> Result<Game, String>
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -119,7 +119,7 @@ fn clear_old_messages_internal(state: &StateManager) -> Result<Game, String> {
     });
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -188,7 +188,7 @@ fn resolve_message_action_internal(
 
     state.set_game(game.clone());
     Ok(serde_json::json!({
-        "game": game,
+        "game": crate::client_game::game_for_client(&game),
         "effect": effect,
         "effect_i18n_key": effect_i18n_key,
         "effect_i18n_params": effect_i18n_params

@@ -115,7 +115,7 @@ pub fn promote_academy_player(
     );
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -166,7 +166,7 @@ pub fn demote_main_player_to_academy(
     );
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 pub(crate) fn get_academy_acquisition_options_for_game(

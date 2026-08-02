@@ -361,7 +361,7 @@ pub fn finish_live_match(
 
     state.set_game(game.clone());
     Ok(FinishLiveMatchResponse {
-        game,
+        game: crate::client_game::game_for_client(&game),
         round_summary,
     })
 }

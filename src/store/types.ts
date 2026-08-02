@@ -439,6 +439,7 @@ export interface ChampionPatchStateData {
   patch_year?: number;
   patch_index_in_year?: number;
   last_patch_date: string | null;
+  /** IPC contains only entries whose champion has already been discovered. */
   hidden_meta: ChampionMetaEntryData[];
   patch_notes: ChampionPatchNoteData[];
   discovered_champion_ids: string[];

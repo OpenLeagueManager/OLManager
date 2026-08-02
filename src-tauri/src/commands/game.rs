@@ -661,7 +661,7 @@ pub async fn select_team(
     );
     state.set_game(game.clone());
     state.set_stats_state(StatsState::default());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -880,7 +880,7 @@ pub async fn get_active_game(
         }
     }
 
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]

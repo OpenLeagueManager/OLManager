@@ -128,13 +128,13 @@ pub fn advance_to_next_season(state: State<'_, StateManager>) -> Result<serde_js
     if game.manager.team_id.is_none() {
         return Ok(serde_json::json!({
             "action": "fired",
-            "game": game,
+            "game": crate::client_game::game_for_client(&game),
             "summary": summary,
         }));
     }
 
     Ok(serde_json::json!({
-        "game": game,
+        "game": crate::client_game::game_for_client(&game),
         "summary": summary,
     }))
 }

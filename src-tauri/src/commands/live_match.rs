@@ -11,9 +11,7 @@ use crate::application::live_match::{
 };
 use olm_core::domain::stats::MatchOutcome;
 use olm_core::draft::{
-    evaluate_draft_picks as evaluate_draft_picks_core,
-    evaluate_draft_state as evaluate_draft_state_core, DraftPickInput, DraftStateEvaluation,
-    DraftStateInput, PickEvaluation,
+    evaluate_draft_state as evaluate_draft_state_core, DraftStateEvaluation, DraftStateInput,
 };
 use olm_core::game::Game;
 use olm_core::state::StateManager;
@@ -116,43 +114,6 @@ pub fn start_live_match(
     allows_extra_time: bool,
 ) -> Result<olm_core::engine::MatchSnapshot, String> {
     start_live_match_service(&state, fixture_index, &mode, allows_extra_time)
-}
-
-#[tauri::command]
-pub fn evaluate_draft_pick(
-    state: State<'_, StateManager>,
-    player_id: String,
-    champion_id: String,
-) -> Result<PickEvaluation, String> {
-    let game = state
-        .get_game(|game: &Game| game.clone())
-        .ok_or("No active game session".to_string())?;
-    let effective_role = game
-        .players
-        .iter()
-        .find(|player| player.id == player_id)
-        .map(|player| player.natural_position)
-        .ok_or("Player not found".to_string())?;
-    evaluate_draft_picks_core(
-        &game,
-        &[DraftPickInput {
-            player_id,
-            champion_id,
-            effective_role,
-        }],
-    )
-    .map(|mut evaluations| evaluations.remove(0))
-}
-
-#[tauri::command]
-pub fn evaluate_draft_picks(
-    state: State<'_, StateManager>,
-    picks: Vec<DraftPickInput>,
-) -> Result<Vec<PickEvaluation>, String> {
-    let game = state
-        .get_game(|game: &Game| game.clone())
-        .ok_or("No active game session".to_string())?;
-    evaluate_draft_picks_core(&game, &picks)
 }
 
 /// Evaluates a completed manual draft without serializing hidden meta or unapproved rival data.
@@ -270,7 +231,7 @@ pub fn record_fixture_champion_picks(
     olm_core::champions::apply_match_mastery_progress(&mut game, &winner_team_id, &mastery_picks);
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -295,7 +256,7 @@ pub fn apply_champion_mastery_from_draft(
     olm_core::champions::apply_match_mastery_progress(&mut game, &winner_team_id, &mastery_picks);
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 /// Apply a team talk and return per-player morale changes.
@@ -486,7 +447,7 @@ pub fn submit_press_conference(
     state.set_game(game.clone());
 
     Ok(serde_json::json!({
-        "game": game,
+        "game": crate::client_game::game_for_client(&game),
         "morale_delta": morale_delta
     }))
 }
@@ -730,7 +691,9 @@ mod tests {
         let round_summary = response.round_summary.expect("round summary response");
         assert!(round_summary.is_complete);
         assert_eq!(round_summary.pending_fixture_count, 0);
-        assert_eq!(round_summary.completed_results.len(), 2);
+        // The fixture builder defines one match in matchday 1; the summary includes
+        // completed fixtures from that matchday, not every team in the standings.
+        assert_eq!(round_summary.completed_results.len(), 1);
         assert_eq!(
             response
                 .game

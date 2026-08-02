@@ -80,7 +80,7 @@ fn hire_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, Str
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[cfg(test)]
@@ -302,5 +302,5 @@ fn release_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, 
     staff.team_id = None;
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }

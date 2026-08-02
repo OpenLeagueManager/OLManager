@@ -514,7 +514,7 @@ fn set_active_lineup_internal(
     apply_active_lineup(&mut game, &team_id, player_ids);
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 fn apply_active_lineup(game: &mut Game, team_id: &str, player_ids: Vec<String>) {
@@ -552,7 +552,7 @@ pub fn set_draft_strategy(
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -576,7 +576,7 @@ pub fn set_lol_tactics(
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -600,7 +600,7 @@ pub fn set_team_roles(
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -638,7 +638,7 @@ pub fn set_training(
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -660,7 +660,7 @@ pub fn set_training_schedule(
     olm_core::commands::set_training_schedule(&mut game, &team_id, &schedule);
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -684,7 +684,7 @@ pub fn set_training_groups(
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -782,7 +782,7 @@ pub fn set_weekly_scrims(
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -868,7 +868,7 @@ pub fn set_weekly_scrim_plans(
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -905,7 +905,7 @@ pub fn set_weekly_scrim_slots(state: State<'_, StateManager>, slots: u8) -> Resu
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -946,7 +946,7 @@ pub fn set_weekly_scrim_objective(
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -999,7 +999,7 @@ pub fn auto_configure_weekly_scrim_setup(state: State<'_, StateManager>) -> Resu
         let (setup_locked, _) =
             weekly_scrim_setup_lock_state(team, &week_key, current_weekday, game.day_phase.clone());
         if setup_locked {
-            return Ok(game);
+            return Ok(crate::client_game::game_for_client(&game));
         }
 
         let effective_slots =
@@ -1073,7 +1073,7 @@ pub fn auto_configure_weekly_scrim_setup(state: State<'_, StateManager>) -> Resu
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -1099,7 +1099,7 @@ pub fn finalize_weekly_scrim_setup(state: State<'_, StateManager>) -> Result<Gam
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -1157,7 +1157,7 @@ pub fn cancel_todays_scrims(state: State<'_, StateManager>) -> Result<Game, Stri
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -1203,7 +1203,7 @@ pub fn choose_post_scrim_decision(
     apply_post_scrim_decision_internal(&mut game, &manager_team_id, slot_index, decision)?;
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -1269,7 +1269,7 @@ pub fn choose_daily_scrim_action(
     transition_daily_scrim_flow(state_for_action, event)?;
 
     if action == "CancelScrims" {
-        return Ok(game);
+        return Ok(crate::client_game::game_for_client(&game));
     }
 
     let decision = match action.as_str() {
@@ -1367,7 +1367,7 @@ pub fn delegate_scrim_decision(state: State<'_, StateManager>) -> Result<Game, S
 
     apply_post_scrim_decision_internal(&mut game, &manager_team_id, slot_index, decision)?;
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -1752,7 +1752,7 @@ pub fn set_player_training_focus(
     }
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -1778,7 +1778,7 @@ pub fn set_player_champion_training_target(
     )?;
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -1795,7 +1795,7 @@ pub fn delegate_champion_training(state: State<'_, StateManager>) -> Result<Game
     );
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 /// Current SoloQ standing (tier / LP / daily delta / mastery multiplier) for the
@@ -1833,7 +1833,7 @@ pub fn start_potential_research(
     potential::start_potential_research(&mut game, &player_id)?;
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -1895,7 +1895,7 @@ pub fn reroll_player_lol_role(
     player.position = next_position;
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]

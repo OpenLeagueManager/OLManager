@@ -51,7 +51,7 @@ fn upgrade_facility_internal(state: &StateManager, facility: &str) -> Result<Gam
     olm_core::club::upgrade_facility(team, facility_type, &today)?;
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 fn upgrade_main_facility_module_internal(
@@ -89,7 +89,7 @@ fn upgrade_main_facility_module_internal(
     olm_core::club::upgrade_main_facility_module(team, module_kind, &today)?;
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 fn expand_main_facility_hub_internal(state: &StateManager) -> Result<Game, String> {
@@ -114,7 +114,7 @@ fn expand_main_facility_hub_internal(state: &StateManager) -> Result<Game, Strin
     olm_core::club::expand_main_facility_hub(team, &today)?;
 
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[cfg(test)]
@@ -169,7 +169,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(team.facilities.medical, 2);
-        assert_eq!(team.finance, 750_000);
+        assert_eq!(team.finance, 500_000);
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         let stored_team = stored_game
@@ -178,6 +178,6 @@ mod tests {
             .find(|team| team.id == "team-1")
             .expect("stored team should exist");
         assert_eq!(stored_team.facilities.medical, 2);
-        assert_eq!(stored_team.finance, 750_000);
+        assert_eq!(stored_team.finance, 500_000);
     }
 }

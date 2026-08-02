@@ -37,7 +37,7 @@ pub fn create_manager_social_post(
 
     olm_core::social::publish_manager_post(&mut game, &text, data_base.as_deref())?;
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -64,7 +64,7 @@ pub fn save_social_accounts(
         .ok_or("No active game session".to_string())?;
     game.social_accounts = accounts;
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -91,7 +91,7 @@ pub fn save_social_templates(
         .ok_or("No active game session".to_string())?;
     game.social_templates = templates;
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }
 
 #[tauri::command]
@@ -106,5 +106,5 @@ pub fn relocalize_social_feed(
     let data_base = resolve_data_base(&app_handle);
     olm_core::social::relocalize_social_posts(&mut game, &language, data_base.as_deref());
     state.set_game(game.clone());
-    Ok(game)
+    Ok(crate::client_game::game_for_client(&game))
 }

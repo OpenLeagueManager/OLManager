@@ -96,7 +96,7 @@ fn propose_renewal_internal(
 
     Ok(RenewalCommandResponse {
         outcome: outcome.decision,
-        game,
+        game: crate::client_game::game_for_client(&game),
         suggested_wage: outcome.suggested_wage,
         suggested_years: outcome.suggested_years,
         session_status: outcome.session_status,
@@ -132,7 +132,10 @@ fn delegate_renewals_internal(
 
     state.set_game(game.clone());
 
-    Ok(DelegatedRenewalCommandResponse { game, report })
+    Ok(DelegatedRenewalCommandResponse {
+        game: crate::client_game::game_for_client(&game),
+        report,
+    })
 }
 
 fn preview_renewal_financial_impact_internal(

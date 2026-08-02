@@ -32,6 +32,6 @@ pub fn apply_for_job(
             JobApplicationResult::InvalidTeam => "invalid_team",
             JobApplicationResult::AlreadyEmployed => "already_employed",
         },
-        "game": game,
+        "game": crate::client_game::game_for_client(&game),
     }))
 }

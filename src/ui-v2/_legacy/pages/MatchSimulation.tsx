@@ -1351,8 +1351,8 @@ export default function MatchSimulation() {
         payload = { ...payload, canonical };
         const viewerIsBlue = viewerTeamId === activeSnapshot.home_team.id;
         const visibleEvaluations = canonical.pick_evaluations.flatMap((evaluation) =>
-          typeof evaluation.total === "number" && typeof evaluation.engine_modifier === "number"
-            ? [{ ...evaluation, meta_power: evaluation.meta_power ?? 60, total: evaluation.total, engine_modifier: evaluation.engine_modifier }]
+          typeof evaluation.meta_power === "number" && typeof evaluation.total === "number" && typeof evaluation.engine_modifier === "number"
+            ? [{ ...evaluation, meta_power: evaluation.meta_power, total: evaluation.total, engine_modifier: evaluation.engine_modifier }]
             : [],
         );
         setDraftEvaluations(viewerIsBlue

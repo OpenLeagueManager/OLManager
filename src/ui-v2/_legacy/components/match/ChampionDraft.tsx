@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { MatchSnapshot } from "@/ui-v2/_legacy/components/match/types";
 import type { GameStateData, ScrimReportData } from "@/store/gameStore";
@@ -17,7 +16,7 @@ import {
   rankBanCandidates,
   type BanRecommendationContext,
 } from "@/ui-v2/_legacy/components/match/draftIntelHelpers";
-import type { DraftPickEvaluation, DraftStateEvaluation } from "@/ui-v2/_legacy/components/match/draftResultSimulator";
+import type { DraftStateEvaluation } from "@/ui-v2/_legacy/components/match/draftResultSimulator";
 
 type Side = "blue" | "red";
 type DraftActionType = "ban" | "pick";
@@ -250,47 +249,6 @@ interface ChampionDraftProps {
 }
 
 
-// This should be put in another place. Cruncky to edit and test. Should we get real mastery and meta scores? This will be removed anyway.
-const META_CHAMPION_SCORES: Record<string, number> = {
-  ahri: 18,
-  ambessa: 20,
-  ashe: 12,
-  aurora: 17,
-  azir: 18,
-  camille: 16,
-  corki: 14,
-  elise: 12,
-  ezreal: 13,
-  gragas: 15,
-  hwei: 17,
-  jayce: 16,
-  jhin: 13,
-  jinx: 15,
-  kalista: 14,
-  kaisa: 16,
-  ksante: 17,
-  leblanc: 14,
-  leesin: 12,
-  lissandra: 13,
-  lucian: 15,
-  nautilus: 14,
-  nidalee: 12,
-  orianna: 15,
-  poppy: 15,
-  rell: 14,
-  renekton: 14,
-  rumble: 18,
-  sejuani: 16,
-  skarner: 17,
-  smolder: 13,
-  sylas: 17,
-  taliyah: 14,
-  varus: 16,
-  vi: 14,
-  xayah: 13,
-  yone: 14,
-};
-
 const ROLE_ORDER: Role[] = ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"];
 const ASSISTANT_COACH_PLACEHOLDER = "";
 const EMPTY_LOCKED_CHAMPION_IDS: string[] = [];
@@ -300,10 +258,6 @@ interface DraftEvaluationRequest {
   playerId: string;
   championId: string;
   effectiveRole: Role;
-}
-
-function draftEvaluationKey(request: DraftEvaluationRequest): string {
-  return `${request.playerId}:${request.championId}:${request.effectiveRole}`;
 }
 
 export function isCurrentDraftEvaluationRequest(
@@ -771,10 +725,6 @@ export default function ChampionDraft({
   const [consultedCounterChampionIds, setConsultedCounterChampionIds] = useState<Set<string>>(() => new Set());
   const autoResolvedStepKeyRef = useRef<string | null>(null);
   const finalRoleReassignFxPlayedRef = useRef(false);
-  const draftEvaluationCacheRef = useRef(new Map<string, DraftPickEvaluation>());
-  const draftEvaluationRequestIdRef = useRef(0);
-  const draftEvaluationRequestKeyRef = useRef("");
-  const [draftEvaluationVersion, setDraftEvaluationVersion] = useState(0);
 
   const bluePlayerIds = useMemo(
     () => snapshot.home_team.players.map((player) => player.id),
@@ -1083,67 +1033,6 @@ export default function ChampionDraft({
     return { playerId: player.id, effectiveRole };
   }, [bluePicks.length, bluePlayers, currentStep?.side, currentStep?.type, redPicks.length, redPlayers]);
 
-  const currentPickEvaluationContextKey = currentPickEvaluationContext
-    ? `${stepIndex}:${currentStep?.side}:${currentPickEvaluationContext.playerId}:${currentPickEvaluationContext.effectiveRole}`
-    : "";
-
-  useEffect(() => {
-    if (!currentPickEvaluationContext) return;
-    const requests = champions
-      .filter((champion) => !usedChampionIds.has(champion.id))
-      .map((champion) => ({ ...currentPickEvaluationContext, championId: champion.id }));
-    const missing = requests.filter((request) => !draftEvaluationCacheRef.current.has(draftEvaluationKey(request)));
-    if (missing.length === 0) return;
-
-    const requestId = draftEvaluationRequestIdRef.current + 1;
-    draftEvaluationRequestIdRef.current = requestId;
-    draftEvaluationRequestKeyRef.current = currentPickEvaluationContextKey;
-    let active = true;
-    invoke<DraftPickEvaluation[]>("evaluate_draft_picks", { picks: missing })
-      .then((evaluations) => {
-        if (!active || !isCurrentDraftEvaluationRequest(
-          requestId,
-          draftEvaluationRequestIdRef.current,
-          currentPickEvaluationContextKey,
-          draftEvaluationRequestKeyRef.current,
-        )) return;
-        evaluations.forEach((evaluation, index) => {
-          const request = missing[index];
-          if (request) draftEvaluationCacheRef.current.set(draftEvaluationKey(request), evaluation);
-        });
-        setDraftEvaluationVersion((version) => version + 1);
-      })
-      .catch(() => {
-        // A failed recommendation must never prevent a user pick or trap an AI turn.
-        if (active && isCurrentDraftEvaluationRequest(
-          requestId,
-          draftEvaluationRequestIdRef.current,
-          currentPickEvaluationContextKey,
-          draftEvaluationRequestKeyRef.current,
-        )) {
-          missing.forEach((request) => {
-            draftEvaluationCacheRef.current.set(draftEvaluationKey(request), {
-              champion_id: request.championId,
-              meta_power: 0,
-              mastery: 0,
-              skill_fit: 0,
-              execution_risk: 0,
-              total: 0,
-              engine_modifier: 0,
-            });
-          });
-          setDraftEvaluationVersion((version) => version + 1);
-        }
-      });
-    return () => { active = false; };
-  }, [champions, currentPickEvaluationContext, currentPickEvaluationContextKey, usedChampionIds]);
-
-  const pendingEvaluation = pendingChampionId && currentPickEvaluationContext
-    ? draftEvaluationCacheRef.current.get(draftEvaluationKey({
-      ...currentPickEvaluationContext,
-      championId: pendingChampionId,
-    })) ?? null
-    : null;
 
   const buildOrderedPicks = (
     side: Side,
@@ -1283,8 +1172,7 @@ export default function ChampionDraft({
   const metaScoreForChampion = (champion: ChampionData): number => {
     const runtime = runtimeMetaScoreByChampion.get(normalizeKey(champion.id));
     if (typeof runtime === "number") return runtime;
-    const direct = META_CHAMPION_SCORES[normalizeKey(champion.id)] ?? META_CHAMPION_SCORES[normalizeKey(champion.name)];
-    return direct ?? 0;
+    return 12;
   };
 
   const enemySideFor = (side: Side): Side => (side === "blue" ? "red" : "blue");
@@ -1423,11 +1311,6 @@ export default function ChampionDraft({
       let bestScore = Number.NEGATIVE_INFINITY;
 
       scoringPool.forEach((champion) => {
-        const evaluation = draftEvaluationCacheRef.current.get(draftEvaluationKey({
-          ...currentPickEvaluationContext,
-          championId: champion.id,
-        }));
-        if (!evaluation) return;
         const roleNeedBonus =
           missingRoles.length > 0 && champion.roleHints.some((role) => missingRoles.includes(role)) ? 12 : 0;
         let counter = 0;
@@ -1437,7 +1320,7 @@ export default function ChampionDraft({
           counter -= counterValue(enemyPick.championId, champion.id) * AI_WEIGHTS.pick.counterRiskWeight;
         });
 
-        const score = evaluation.total + counter + roleNeedBonus;
+        const score = 50 + counter + roleNeedBonus;
         if (score > bestScore) {
           bestScore = score;
           bestChampion = champion;
@@ -1692,7 +1575,6 @@ export default function ChampionDraft({
     currentStep,
     currentStepKey,
     currentPickEvaluationContext,
-    draftEvaluationVersion,
     finished,
     loading,
     usedChampionIds,
@@ -1718,7 +1600,6 @@ export default function ChampionDraft({
     controlledSide,
     currentStep,
     currentStepKey,
-    draftEvaluationVersion,
     finished,
     loading,
     pendingChampionId,
@@ -3090,14 +2971,6 @@ export default function ChampionDraft({
                       ? t("match.draft.actions.ban")
                       : t("match.draft.actions.pick")}
                   </button>
-                </div>
-              ) : null}
-              {pendingEvaluation ? (
-                <div className="relative grid grid-cols-4 gap-1 rounded-md border border-orange-500/30 bg-orange-500/5 px-2 py-1.5 text-2xs">
-                  <span>Meta {pendingEvaluation.meta_power}</span>
-                  <span>Mastery {pendingEvaluation.mastery}</span>
-                  <span>Skill fit {pendingEvaluation.skill_fit}</span>
-                  <span className="text-orange-300">Risk {pendingEvaluation.execution_risk}</span>
                 </div>
               ) : null}
 

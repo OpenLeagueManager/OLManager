@@ -26,7 +26,7 @@ fn advance_time_internal(state: &StateManager) -> Result<Game, String> {
     }
 
     state.set_game(current_game.clone());
-    Ok(current_game)
+    Ok(crate::client_game::game_for_client(&current_game))
 }
 
 fn advance_time_with_mode_internal(
@@ -134,7 +134,7 @@ pub fn skip_to_match_day(state: State<'_, StateManager>) -> Result<serde_json::V
             state.set_game(game.clone());
             return Ok(serde_json::json!({
                 "action": "fired",
-                "game": game,
+                "game": crate::client_game::game_for_client(&game),
                 "days_skipped": days_skipped
             }));
         }
@@ -151,7 +151,7 @@ pub fn skip_to_match_day(state: State<'_, StateManager>) -> Result<serde_json::V
             state.set_game(game.clone());
             return Ok(serde_json::json!({
                 "action": "blocked",
-                "game": game,
+                "game": crate::client_game::game_for_client(&game),
                 "blockers": blockers,
                 "days_skipped": days_skipped
             }));
@@ -166,7 +166,7 @@ pub fn skip_to_match_day(state: State<'_, StateManager>) -> Result<serde_json::V
     state.set_game(game.clone());
     Ok(serde_json::json!({
         "action": "arrived",
-        "game": game,
+        "game": crate::client_game::game_for_client(&game),
         "days_skipped": days_skipped
     }))
 }
@@ -711,7 +711,7 @@ mod tests {
     fn advance_time_with_mode_resolves_scrims_when_entering_scrim_block() {
         let state = StateManager::new();
         let mut game = make_game(22);
-        game.clock.current_date = Utc.with_ymd_and_hms(2025, 6, 17, 12, 0, 0).unwrap();
+        game.clock.current_date = Utc.with_ymd_and_hms(2025, 6, 18, 12, 0, 0).unwrap();
         game.teams[0].scrim_weekly_slots = 2;
         game.teams[0].weekly_scrim_plan_team_ids = vec![vec!["team2".to_string()]];
 
