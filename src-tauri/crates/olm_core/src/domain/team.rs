@@ -113,6 +113,13 @@ pub struct Team {
     #[serde(default, alias = "starting_xi_ids")]
     pub active_lineup_ids: Vec<String>,
 
+    /// Per-role substitute player IDs (index 0..4 matching active_lineup_ids role order:
+    /// TOP, JUNGLE, MID, ADC, SUPPORT).  An empty string means no sub is assigned for that role.
+    /// When the starter has critically low condition (< 30 %), the match engine will
+    /// automatically promote the sub into the active lineup for that match.
+    #[serde(default)]
+    pub role_sub_ids: Vec<String>,
+
     #[serde(default)]
     pub team_roles: TeamRoles,
 
@@ -1366,6 +1373,7 @@ impl Team {
                 secondary: "#ffffff".to_string(),
             },
             active_lineup_ids: Vec::new(),
+            role_sub_ids: Vec::new(),
             team_roles: TeamRoles::default(),
             form: Vec::new(),
             history: Vec::new(),

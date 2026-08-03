@@ -523,6 +523,34 @@ fn apply_active_lineup(game: &mut Game, team_id: &str, player_ids: Vec<String>) 
     }
 }
 
+/// Assign per-role substitutes for the active lineup.
+///
+/// `sub_ids` must be a Vec of 5 strings (one per role in the order TOP, JUNGLE,
+/// MID, ADC, SUPPORT), where each entry is either a valid player ID or empty.
+#[tauri::command]
+pub fn set_role_subs(
+    state: State<'_, StateManager>,
+    sub_ids: Vec<String>,
+) -> Result<Game, String> {
+    info!("[cmd] set_role_subs: {} subs", sub_ids.len());
+    let mut game = state
+        .get_game(|g| g.clone())
+        .ok_or("No active game session".to_string())?;
+
+    let team_id = game
+        .manager
+        .team_id
+        .clone()
+        .ok_or("No team assigned".to_string())?;
+
+    if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+        team.role_sub_ids = sub_ids;
+    }
+
+    state.set_game(game.clone());
+    Ok(game)
+}
+
 #[tauri::command]
 pub fn set_draft_strategy(
     state: State<'_, StateManager>,

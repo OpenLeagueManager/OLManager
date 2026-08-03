@@ -237,6 +237,7 @@ pub fn run() {
             delegate_renewals,
             preview_renewal_financial_impact,
             set_active_lineup,
+            set_role_subs,
             set_starting_xi,
             set_draft_strategy,
             set_lol_tactics,

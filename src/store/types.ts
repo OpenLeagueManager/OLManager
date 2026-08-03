@@ -202,6 +202,8 @@ export interface TeamData {
   sponsorship?: SponsorshipData | null;
   /** Preferred LoL terminology. Serialized by current saves/API responses. */
   active_lineup_ids?: string[];
+  /** Per-role substitute player IDs (indexed same as active_lineup_ids). */
+  role_sub_ids?: string[];
   /** @deprecated Compatibility for older saves/API payloads. Use active_lineup_ids. */
   starting_xi_ids?: string[];
   team_roles?: TeamRolesData;

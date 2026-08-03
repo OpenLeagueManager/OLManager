@@ -9,12 +9,14 @@ import {
   Info,
   Loader2,
   Search,
+  ShoppingCart,
   Sparkles,
   Star,
   TrendingUp,
   Users,
 } from "lucide-react";
 
+import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, AcademyAcquisitionOptionData } from "@/store/gameStore";
 import { findAcademyTeamForParent, getTeamAcademyRoster } from "@/store/academySelectors";
 import {
@@ -92,6 +94,7 @@ export function YouthTabV2({ gameState, onSelectPlayer, onSelectTeam, onGameUpda
   );
 
   const [promotingPlayerId, setPromotingPlayerId] = useState<string | null>(null);
+  const [transferListingPlayerId, setTransferListingPlayerId] = useState<string | null>(null);
   const [acquisitionOptions, setAcquisitionOptions] = useState<AcademyAcquisitionOptionData[]>([]);
   const [acquisitionBlockedReason, setAcquisitionBlockedReason] = useState<string | null>(null);
   const [acquisitionLoading, setAcquisitionLoading] = useState(false);
@@ -621,35 +624,68 @@ export function YouthTabV2({ gameState, onSelectPlayer, onSelectTeam, onGameUpda
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            <button
-                              type="button"
-                              disabled={promotingPlayerId === player.id}
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                try {
-                                  setPromotingPlayerId(player.id);
-                                  const updated = await promoteAcademyPlayer(player.id);
-                                  onGameUpdate?.(updated);
-                                } finally {
-                                  setPromotingPlayerId(null);
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                disabled={transferListingPlayerId === player.id}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    setTransferListingPlayerId(player.id);
+                                    const updated = await invoke<GameStateData>("toggle_transfer_list", { playerId: player.id });
+                                    onGameUpdate?.(updated);
+                                  } finally {
+                                    setTransferListingPlayerId(null);
+                                  }
+                                }}
+                                className={cn(
+                                  "flex size-7 items-center justify-center rounded-md border transition-colors",
+                                  player.transfer_listed
+                                    ? "border-red-500/30 bg-red-500/10 text-red-400"
+                                    : "border-border text-muted-foreground/50 hover:border-red-500/30 hover:text-red-400",
+                                )}
+                                title={
+                                  player.transfer_listed
+                                    ? t("youthAcademy.removeFromTransferList", { defaultValue: "Quitar de transferibles" })
+                                    : t("youthAcademy.addToTransferList", { defaultValue: "Añadir a transferibles" })
                                 }
-                              }}
-                              className={cn(
-                                "rounded-md border px-2.5 py-1 text-xs font-heading uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-                                promotingPlayerId === player.id
-                                  ? "border-border bg-muted/30 text-muted-foreground"
-                                  : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20",
-                              )}
-                            >
-                              {promotingPlayerId === player.id ? (
-                                <span className="inline-flex items-center gap-1">
-                                  <Loader2 className="size-3 animate-spin" />
-                                  {t("youthAcademy.promoting")}
-                                </span>
-                              ) : (
-                                t("youthAcademy.promote")
-                              )}
-                            </button>
+                              >
+                                {transferListingPlayerId === player.id ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <ShoppingCart className="size-3.5" />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={promotingPlayerId === player.id}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    setPromotingPlayerId(player.id);
+                                    const updated = await promoteAcademyPlayer(player.id);
+                                    onGameUpdate?.(updated);
+                                  } finally {
+                                    setPromotingPlayerId(null);
+                                  }
+                                }}
+                                className={cn(
+                                  "rounded-md border px-2.5 py-1 text-xs font-heading uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                                  promotingPlayerId === player.id
+                                    ? "border-border bg-muted/30 text-muted-foreground"
+                                    : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20",
+                                )}
+                              >
+                                {promotingPlayerId === player.id ? (
+                                  <span className="inline-flex items-center gap-1">
+                                    <Loader2 className="size-3 animate-spin" />
+                                    {t("youthAcademy.promoting")}
+                                  </span>
+                                ) : (
+                                  t("youthAcademy.promote")
+                                )}
+                              </button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
