@@ -103,11 +103,18 @@ fn prize_money_for_position(position: u32) -> i64 {
         .unwrap_or(150_000)
 }
 
-fn refresh_hiring_cycle_budgets(team: &mut crate::domain::team::Team) {
-    // Minimal hook: after split settlements (prize/objectives), rebalance next-cycle
-    // planning budgets from current treasury so offseason hiring decisions have
-    // coherent funds available without a full finance redesign.
-    team.wage_budget = ((team.finance.max(0) as f64) * 0.06).round() as i64;
+fn refresh_hiring_cycle_budgets(
+    team: &mut crate::domain::team::Team,
+    annual_wage_bill: i64,
+) {
+    // Rebalance next-cycle planning budgets from current treasury so offseason
+    // hiring decisions have coherent funds available without a full finance redesign.
+    //
+    // CRITICAL: the new wage budget must never be lower than the current annual
+    // wage bill.  Otherwise a team that made no signings would instantly show
+    // an absurd usage percentage (e.g. 492 %) after the split transition.
+    let computed = ((team.finance.max(0) as f64) * 0.06).round() as i64;
+    team.wage_budget = computed.max(annual_wage_bill);
     team.transfer_budget = ((team.finance.max(0) as f64) * 0.22).round() as i64;
 }
 
@@ -363,7 +370,18 @@ fn process_end_of_season_inner(
         total_teams: final_standings.len() as u32,
     };
 
-    // 4. Record team season history
+    // 4. Pre-calculate annual wage bills for the budget refresh below
+    //    (must be done before the mutable team loop to avoid borrow conflicts).
+    let wage_bills: std::collections::HashMap<String, i64> = final_standings
+        .iter()
+        .filter_map(|standing| {
+            let team_id = &standing.team_id;
+            let wages = crate::finances::calc_annual_wages(game, team_id);
+            Some((team_id.clone(), wages))
+        })
+        .collect();
+
+    // 5. Record team season history
     for (idx, standing) in final_standings.iter().enumerate() {
         if let Some(team) = game.teams.iter_mut().find(|t| t.id == standing.team_id) {
             let position = (idx + 1) as u32;
@@ -404,7 +422,8 @@ fn process_end_of_season_inner(
                 .ok();
             }
 
-            refresh_hiring_cycle_budgets(team);
+            let annual_wage = wage_bills.get(&team.id).copied().unwrap_or(0);
+            refresh_hiring_cycle_budgets(team, annual_wage);
         }
     }
 

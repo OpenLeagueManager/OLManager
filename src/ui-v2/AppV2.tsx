@@ -118,6 +118,7 @@ export default function AppV2() {
   } = useUpdater(AUTO_CHECK_UPDATES);
 
   const [ready, setReady] = useState(false);
+  const [safeAreaTop, setSafeAreaTop] = useState(0);
 
   useEffect(() => {
     if (!loaded) loadSettings();
@@ -137,6 +138,7 @@ export default function AppV2() {
     }
   }, [ready, settings.language]);
 
+  // --- Android: immersive mode + safe-area ---
   useEffect(() => {
     if (!ready) return;
     const isAndroid = /Android/i.test(window.navigator.userAgent);
@@ -163,6 +165,23 @@ export default function AppV2() {
     };
 
     void applyAndroidImmersive();
+
+    // Measure the actual safe-area inset by reading env(safe-area-inset-top).
+    // Chromium WebViews on Android may not expose env(), so fall back to 48 px
+    // (typical Android status bar height in landscape).
+    const measureSafeArea = () => {
+      if (cancelled) return;
+      const probe = document.createElement("div");
+      probe.style.cssText =
+        "position:fixed;top:env(safe-area-inset-top,48px);left:0;width:1px;height:1px;pointer-events:none;opacity:0;z-index:-1";
+      document.body.appendChild(probe);
+      // getComputedStyle resolves env() to its computed pixel value, or 48px
+      const raw = parseFloat(getComputedStyle(probe).top);
+      setSafeAreaTop(Number.isFinite(raw) && raw > 0 ? Math.round(raw) : 48);
+      document.body.removeChild(probe);
+    };
+    // Wait for the WebView to settle before measuring.
+    setTimeout(measureSafeArea, 400);
 
     const onVisible = () => {
       if (document.visibilityState === "visible") {
@@ -236,7 +255,10 @@ export default function AppV2() {
   }, []);
 
   return (
-    <div className="flex h-screen flex-col dark">
+    <div
+      className="flex h-screen flex-col dark"
+      style={safeAreaTop > 0 ? { paddingTop: safeAreaTop } : undefined}
+    >
       <TitleBarV2 />
       <div className="flex min-h-0 flex-1 flex-col">
         <ErrorBoundary>
