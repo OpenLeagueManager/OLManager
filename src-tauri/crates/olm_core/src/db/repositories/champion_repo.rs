@@ -140,6 +140,7 @@ pub fn seed_from_json(conn: &Connection, json_content: &str) -> Result<usize, St
                 "/champion-splash/{}.webp",
                 champion_key
             )),
+            meta_tier: crate::domain::champion::MetaTier::B,
         };
 
         insert_champion(conn, &new_champ)?;
@@ -170,6 +171,7 @@ pub fn get_all_champions(conn: &Connection) -> Result<Vec<Champion>, String> {
                 synergies_json: row.get(5)?,
                 image_tile_url: row.get(6)?,
                 image_splash_url: row.get(7)?,
+                meta_tier: crate::domain::champion::MetaTier::B,
             })
         })
         .map_err(|e| format!("Failed to query champions: {}", e))?;
@@ -203,6 +205,7 @@ pub fn get_champion_by_id(conn: &Connection, id: i64) -> Result<Option<Champion>
                 synergies_json: row.get(5)?,
                 image_tile_url: row.get(6)?,
                 image_splash_url: row.get(7)?,
+                meta_tier: crate::domain::champion::MetaTier::B,
             })
         })
         .map_err(|e| format!("Failed to query champion: {}", e))?;
@@ -234,6 +237,7 @@ pub fn get_champion_by_key(conn: &Connection, key: &str) -> Result<Option<Champi
                 synergies_json: row.get(5)?,
                 image_tile_url: row.get(6)?,
                 image_splash_url: row.get(7)?,
+                meta_tier: crate::domain::champion::MetaTier::B,
             })
         })
         .map_err(|e| format!("Failed to query champion: {}", e))?;

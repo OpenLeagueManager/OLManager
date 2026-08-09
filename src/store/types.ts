@@ -458,6 +458,7 @@ export interface ChampionData {
   synergies_json: string | null;
   image_tile_url: string | null;
   image_splash_url: string | null;
+  meta_tier: string;
 }
 
 export interface TransferOfferData {

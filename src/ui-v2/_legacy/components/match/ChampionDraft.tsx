@@ -29,6 +29,8 @@ interface ChampionData {
   image: string;
   tags: string[];
   roleHints: Role[];
+  /// Patch meta tier for draft priority (S/A/B/C/D). Defaults to "B".
+  meta_tier: string;
 }
 
 interface DraftAction {
@@ -744,7 +746,7 @@ export default function ChampionDraft({
 
   useEffect(() => {
     try {
-      const data = championListSeed as { champions: Array<{ id: string; key: number; name: string; tags: string[]; image: string }> };
+      const data = championListSeed as { champions: Array<{ id: string; key: number; name: string; tags: string[]; image: string; meta_tier?: string }> };
       const list = (data.champions ?? [])
         .map((champion) => ({
           id: champion.id,
@@ -753,6 +755,7 @@ export default function ChampionDraft({
           image: `/champion-tiles/${champion.id}.webp`,
           tags: champion.tags,
           roleHints: inferRoleHintsFromSeed(champion.id, champion.name, champion.tags),
+          meta_tier: champion.meta_tier ?? "B",
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -2363,28 +2366,18 @@ export default function ChampionDraft({
     const playerTips = tips.filter((tip) => tip.sourceType === "player");
 
     if (draftAdviceStage === "pick") {
+      // Always show ALL player pick tips (one per role) so that when a player
+      // pivots their request the rest of the squad's preferences stay visible.
       const playerPickTips = playerTips.filter((tip) => tip.type === "pick").slice(0, 5);
       const coachWarnTips = coachTips.filter((tip) => tip.type !== "pick").slice(0, 1);
-      return [...playerPickTips, ...coachWarnTips].slice(0, 5);
+      return [...playerPickTips, ...coachWarnTips].slice(0, 6);
     }
 
-    const mixed: DraftAdviceTip[] = [];
-    let coachIdx = 0;
-    let playerIdx = 0;
-
-    while (mixed.length < 4 && (coachIdx < coachTips.length || playerIdx < playerTips.length)) {
-      if (coachIdx < coachTips.length) {
-        mixed.push(coachTips[coachIdx]);
-        coachIdx += 1;
-        if (mixed.length >= 4) break;
-      }
-      if (playerIdx < playerTips.length) {
-        mixed.push(playerTips[playerIdx]);
-        playerIdx += 1;
-      }
-    }
-
-    return mixed.slice(0, 4);
+    // Ban stage: show all player ban-request tips plus top coach tip.
+    // Player tips are rendered first and always visible.
+    const playerBanTips = playerTips.filter((tip) => tip.type === "ban").slice(0, 5);
+    const coachBanTips = coachTips.filter((tip) => tip.type === "ban").slice(0, 2);
+    return [...playerBanTips, ...coachBanTips].slice(0, 7);
   }, [
     champions,
     gameState,
@@ -2792,7 +2785,7 @@ export default function ChampionDraft({
                         </p>
 
                         {tip.champion ? (
-                          <div className="mt-2 pt-2 border-t border-white/10 flex items-center gap-2">
+                          <div className="mt-2 pt-2 border-t border-white/10 flex flex-wrap items-center gap-2">
                             <img
                               src={tip.champion.image}
                               alt={tip.champion.name}
@@ -2800,6 +2793,47 @@ export default function ChampionDraft({
                               loading="lazy"
                             />
                             <span className="text-xs text-gray-200 truncate">{tip.champion.name}</span>
+
+                            {/* Meta tier badge */}
+                            {tip.champion.meta_tier && (
+                              <span
+                                className={`inline-flex items-center justify-center rounded px-1 py-0.5 text-[10px] font-bold leading-none ${
+                                  tip.champion.meta_tier === "S"
+                                    ? "bg-red-500/20 text-red-300 border border-red-500/40"
+                                    : tip.champion.meta_tier === "A"
+                                      ? "bg-orange-500/20 text-orange-300 border border-orange-500/40"
+                                      : tip.champion.meta_tier === "B"
+                                        ? "bg-blue-500/20 text-blue-300 border border-blue-500/40"
+                                        : "bg-gray-500/20 text-gray-400 border border-gray-500/40"
+                                }`}
+                              >
+                                {tip.champion.meta_tier}
+                              </span>
+                            )}
+
+                            {/* Flex pick: show secondary roles if champion has multiple */}
+                            {(() => {
+                              const roleHints = tip.champion!.roleHints ?? [];
+                              const secondaryRoles = roleHints.filter(
+                                (r) => tip.sourceRole && r !== tip.sourceRole && ROLE_ORDER.includes(r as Role),
+                              );
+                              if (secondaryRoles.length > 0) {
+                                return secondaryRoles.map((role) => (
+                                  <span
+                                    key={`flex-${role}`}
+                                    className="inline-flex items-center gap-0.5 rounded bg-cyan-500/15 px-1 py-0.5 text-[10px] text-cyan-300 border border-cyan-500/30"
+                                  >
+                                    <img
+                                      src={ROLE_ICON_URLS[role as Role]}
+                                      alt={role}
+                                      className="w-2.5 h-2.5 invert opacity-75"
+                                    />
+                                    {role}
+                                  </span>
+                                ));
+                              }
+                              return null;
+                            })()}
                           </div>
                         ) : null}
                       </article>

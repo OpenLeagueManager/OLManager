@@ -1668,6 +1668,8 @@ pub struct ChampionListEntry {
     pub name: String,
     pub tags: Vec<String>,
     pub image: String,
+    /// Patch meta tier (S/A/B/C/D). Defaults to "B" when absent.
+    pub meta_tier: Option<String>,
 }
 
 /// Load the champion catalog from `assets/draft/champion-list.json`.
@@ -1705,6 +1707,11 @@ pub fn load_champion_catalog_from_path(path: &Path) -> Vec<crate::domain::champi
         .map(|(i, entry)| {
             let champion_key = entry.id.clone();
             let name = entry.name.clone();
+            let meta_tier = entry
+                .meta_tier
+                .as_deref()
+                .and_then(crate::domain::champion::MetaTier::from_name)
+                .unwrap_or(crate::domain::champion::MetaTier::B);
             crate::domain::champion::Champion {
                 id: (i + 1) as i64,
                 name,
@@ -1714,6 +1721,7 @@ pub fn load_champion_catalog_from_path(path: &Path) -> Vec<crate::domain::champi
                 synergies_json: None,
                 image_tile_url: Some(format!("/champion-tiles/{}.webp", entry.id)),
                 image_splash_url: Some(format!("/champion-splash/{}.jpg", entry.id)),
+                meta_tier,
             }
         })
         .collect()

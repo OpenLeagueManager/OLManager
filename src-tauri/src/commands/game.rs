@@ -903,6 +903,7 @@ pub async fn get_champions() -> Result<Vec<olm_core::domain::champion::Champion>
                 synergies_json: None,
                 image_tile_url: Some(format!("/champion-tiles/{}.webp", champion_key)),
                 image_splash_url: Some(format!("/champion-splash/{}.jpg", champion_key)),
+                meta_tier: olm_core::domain::champion::MetaTier::B,
             }
         })
         .collect();
