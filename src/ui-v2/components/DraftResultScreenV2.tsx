@@ -442,7 +442,8 @@ export default function DraftResultScreenV2({
                   <p className="mt-1 text-xs text-muted-foreground/70">
                     {t("match.draftResult.duration")}: {selectedResult.durationMinutes}m
                   </p>
-                  <p className="mt-1 text-2xs font-bold font-heading uppercase tracking-wider text-muted-foreground/70" aria-label={goldAxisLabel}>
+                  <p className="mt-1 text-2xs font-bold font-heading uppercase tracking-wider text-muted-foreground/70" aria-label={goldAxisLabel}
+                     title={t("match.draftResult.goldTooltip", { defaultValue: "Diferencia de oro total (incluye oro gastado en objetos). Oro total = oro disponible + oro en objetos." })}>
                     <span className="text-muted-foreground">+ {blueTri}</span>
                     <span className="mx-1 text-gray-600">·</span>
                     <span className="text-orange-400">- {redTri}</span>
