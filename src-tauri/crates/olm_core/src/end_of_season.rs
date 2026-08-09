@@ -299,6 +299,10 @@ fn process_end_of_season_inner(
         .find(|s| s.team_id == user_team_id)
         .cloned();
 
+    // --- Adjust position for playoff performance ---
+    // The regular-season `user_position` may be misleading when the team
+    // over- or under-performed in playoffs.  A playoff champion should be
+    // counted as 1st; a playoff finalist as at least 2nd, etc.
     let playoff_champion_id = league
         .fixtures
         .iter()
@@ -322,6 +326,33 @@ fn process_end_of_season_inner(
             .map(|s| s.team_id.clone())
             .unwrap_or_default()
     });
+
+    // If the user's team participated in playoffs, adjust their reported
+    // position to reflect the playoff outcome rather than just the regular-
+    // season standing.  A playoff champion is counted as 1st.
+    let playoff_fixtures: Vec<&crate::domain::league::Fixture> = league
+        .fixtures
+        .iter()
+        .filter(|f| f.match_type == MatchType::Playoffs)
+        .collect();
+
+    let user_playoff_position = if !playoff_fixtures.is_empty() {
+        if champion_id == user_team_id {
+            // Playoff champion → position 1
+            Some(1u32)
+        } else if playoff_fixtures.iter().any(|f| {
+            f.home_team_id == user_team_id || f.away_team_id == user_team_id
+        }) {
+            // Participated in playoffs but didn't win → boost to at least 2nd
+            Some(user_position.min(2))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let user_position = user_playoff_position.unwrap_or(user_position);
     let champion_name = game
         .teams
         .iter()
